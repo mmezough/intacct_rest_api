@@ -1,8 +1,12 @@
 using intacct_rest_api.Models;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
-using RestSharp;
-using System.IO;
+using System.Globalization;
+
+//var culture = CultureInfo.GetCultureInfo("en-US");
+//Thread.CurrentThread.CurrentCulture = culture;
+//Thread.CurrentThread.CurrentUICulture = culture;
+
 
 // ========== 1. Configuration ==========
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
@@ -33,22 +37,23 @@ Console.WriteLine("Est expiré ? : " + token.EstExpire);
 // ========== 3. Requête Query ==========
 var filtres = new List<Dictionary<string, object>>
 {
-    Filter.Contains("id", "170"),
-    Filter.GreaterThan("totalDue", "0"),
+    Filter.GreaterThan("totalTxnAmount", "100"),
+    //Filter.Between("postingDate", "2025-01-01", "2025-01-31"),
+    Filter.Between("postingDate", new DateTime(2025, 1, 1).ToString("yyyy-MM-dd"), new DateTime(2025, 1, 31).ToString("yyyy-MM-dd"))
 };
-var filtreExpression = FilterExpression.Or(FilterExpression.Ref(0), FilterExpression.Ref(1));
+var filtreExpression = FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1));
 var filterString = FilterExpression.Build(filtres, filtreExpression);
 
 var queryRequest = new QueryRequest
 {
     Object = "accounts-payable/bill",
-    Fields = new List<string> { "id", "billNumber", "dueDate", "postingDate", "totalTxnAmount", "totalTxnAmountDue" },
-    //Filters = filtres,
-    //FilterExpression = filterString,
-    //FilterParameters = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false },
-    //OrderBy = new List<Dictionary<string, string>> { new() { ["name"] = "asc" } },
-    //Start = 1,
-    //Size = 100
+    Fields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount" },
+    Filters = filtres,
+    FilterExpression = filterString,
+    FilterParameters = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false },
+    OrderBy = new List<Dictionary<string, string>> { new() { ["totalTxnAmount"] = "desc" } },
+    Start = 1,
+    Size = 100
 };
 
 var reponseQuery = await intacctService.Query(queryRequest, token.AccessToken);
@@ -66,13 +71,13 @@ if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content
         {
             var premier = queryResponse.Result[0];
             Console.WriteLine("Premier enregistrement - clés : " + string.Join(", ", premier.Keys));
-            Console.WriteLine("  billNumber : " + premier.GetValueOrDefault("billNumber") + ", dueDate : " + premier.GetValueOrDefault("dueDate") + ", totalTxnAmount : " + premier.GetValueOrDefault("totalTxnAmount"));
+            Console.WriteLine("  billNumber : " + premier.GetValueOrDefault("billNumber") + ", vendor : " + premier.GetValueOrDefault("vendor") + ", totalTxnAmount : " + premier.GetValueOrDefault("totalTxnAmount"));
         }
     }
 }
 
 // ========== 5. Exportation (PDF) ==========
-var fileType = ExportFileType.Pdf;
+var fileType = ExportFileType.Csv;
 var reponseExport = await intacctService.Export(queryRequest, fileType, token.AccessToken);
 Console.WriteLine("\nExportation PDF - Succès : " + reponseExport.IsSuccessful);
 
@@ -85,8 +90,7 @@ if (reponseExport.IsSuccessful && reponseExport.RawBytes?.Length > 0)
     var now = DateTime.Now;
     var ext = "." + fileType.ToString().ToLowerInvariant();
     var nomFichier = $"{objectPart}-export-{now:ddMMyyyy}-{now:HHmmss}{ext}";
-    var dossierExe = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
-    var cheminComplet = Path.Combine(dossierExe, nomFichier);
+    var cheminComplet = Path.Combine("c:\\temp", nomFichier);
     File.WriteAllBytes(cheminComplet, reponseExport.RawBytes);
     Console.WriteLine("Fichier enregistré : " + cheminComplet);
 }
