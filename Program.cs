@@ -82,23 +82,16 @@ if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content
     }
 }
 
-// ========== 5. Exportation (PDF) ==========
-var fileType = ExportFileType.Csv;
+// ========== 5. Exportation ==========
+var fileType = ExportFileType.Pdf;
 var reponseExport = await intacctService.Export(queryRequest, fileType, token.AccessToken);
-Console.WriteLine("\nExportation PDF - Succès : " + reponseExport.IsSuccessful);
 
 if (reponseExport.IsSuccessful && reponseExport.RawBytes?.Length > 0)
 {
-    Console.WriteLine("Exportation PDF - Taille : " + reponseExport.RawBytes!.Length + " octets");
-
-    // Télécharger dans le dossier de l'exe : object-id-ddMMyyyy-HHmmss.ext
-    var objectPart = queryRequest.Object.Replace("/", "-");
-    var now = DateTime.Now;
-    var ext = "." + fileType.ToString().ToLowerInvariant();
-    var nomFichier = $"{objectPart}-export-{now:ddMMyyyy}-{now:HHmmss}{ext}";
-    var cheminComplet = Path.Combine("c:\\temp", nomFichier);
+    var nomFichier = $"{queryRequest.Object.Replace("/", "-")}-export-{DateTime.Now:ddMMyyyy-HHmmss}.{fileType.ToString().ToLowerInvariant()}";
+    var cheminComplet = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? ".", nomFichier);
     File.WriteAllBytes(cheminComplet, reponseExport.RawBytes);
-    Console.WriteLine("Fichier enregistré : " + cheminComplet);
+    Console.WriteLine("\nFichier enregistré : " + cheminComplet);
 }
 
 Console.ReadLine();
