@@ -41,13 +41,13 @@ var filterString = FilterExpression.Build(filtres, filtreExpression);
 var queryRequest = new QueryRequest
 {
     Object = "accounts-payable/bill",
-    Fields = new List<string> { "key", "id", "dueDate", "postingDate", "totalTxnAmount", "totalTxnAmountDue" },
-    Filters = filtres,
-    FilterExpression = filterString,
-    FilterParameters = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false },
-    OrderBy = new List<Dictionary<string, string>> { new() { ["name"] = "asc" } },
-    Start = 1,
-    Size = 100
+    Fields = new List<string> { "id", "billNumber", "dueDate", "postingDate", "totalTxnAmount", "totalTxnAmountDue" },
+    //Filters = filtres,
+    //FilterExpression = filterString,
+    //FilterParameters = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false },
+    //OrderBy = new List<Dictionary<string, string>> { new() { ["name"] = "asc" } },
+    //Start = 1,
+    //Size = 100
 };
 
 var reponseQuery = await intacctService.Query(queryRequest, token.AccessToken);
@@ -65,7 +65,7 @@ if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content
         {
             var premier = queryResponse.Result[0];
             Console.WriteLine("Premier enregistrement - clés : " + string.Join(", ", premier.Keys));
-            Console.WriteLine("  id : " + premier.GetValueOrDefault("id") + ", dueDate : " + premier.GetValueOrDefault("dueDate"));
+            Console.WriteLine("  billNumber : " + premier.GetValueOrDefault("billNumber") + ", dueDate : " + premier.GetValueOrDefault("dueDate") + ", totalTxnAmount : " + premier.GetValueOrDefault("totalTxnAmount"));
         }
     }
 }
