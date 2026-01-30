@@ -55,5 +55,19 @@ public static class Filter
 
     /// <summary>Construit une entrée de filtre : { "$op": { "champ": valeur } }.</summary>
     private static Dictionary<string, object> CreateFilter(string op, string champ, object valeur) =>
-        new() { [op] = new Dictionary<string, object> { [champ] = valeur } };
+        new() { [op] = new Dictionary<string, object> { [champ] = NormalizeValue(valeur) } };
+
+    /// <summary>DateTime/DateOnly → "yyyy-MM-dd" ; listes → chaque élément normalisé ; sinon inchangé.</summary>
+    private static object NormalizeValue(object valeur)
+    {
+        if (valeur is DateTime dt) return dt.ToString("yyyy-MM-dd");
+        if (valeur is DateOnly d) return d.ToString("yyyy-MM-dd");
+        if (valeur is System.Collections.IEnumerable enu && valeur is not string)
+        {
+            var list = new List<object>();
+            foreach (var item in enu) list.Add(NormalizeValue(item)!);
+            return list;
+        }
+        return valeur;
+    }
 }
