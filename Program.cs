@@ -89,7 +89,7 @@ var reponseExport = await intacctService.Export(queryRequest, fileType, token.Ac
 if (reponseExport.IsSuccessful && reponseExport.RawBytes?.Length > 0)
 {
     var nomFichier = $"{queryRequest.Object.Replace("/", "-")}-export-{DateTime.Now:ddMMyyyy-HHmmss}.{fileType.ToString().ToLowerInvariant()}";
-    var cheminComplet = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? ".", nomFichier);
+    var cheminComplet = Path.Combine("C:\\temp", nomFichier);
     File.WriteAllBytes(cheminComplet, reponseExport.RawBytes);
     Console.WriteLine("\nFichier enregistré : " + cheminComplet);
 }
