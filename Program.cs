@@ -1,6 +1,7 @@
 using intacct_rest_api.Models;
 using Microsoft.Extensions.Configuration;
 using RestSharp;
+using System.Net.Http.Headers;
 
 // --- Configuration ---
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
@@ -29,10 +30,34 @@ Console.WriteLine("Est expiré ? : " + token.EstExpire);
 // var revokeOk = await intacctService.RevokerToken(token.AccessToken);
 
 // --- 2. Exemple requête ---
+var filtres = new List<Dictionary<string, object>>
+{
+    Filter.Contains("id", "170"),
+    Filter.GreaterThan("totalDue", "0"),
+};
+var filtreExpression = FilterExpression.Or(FilterExpression.Ref(0), FilterExpression.Ref(1));
+var filterString = FilterExpression.Build(filtres, filtreExpression);
+
+var filterParameters = new FilterParameters
+{
+    CaseSensitiveComparison = false,
+    IncludePrivate = false
+};
+var orderBy = new List<Dictionary<string, string>>
+{
+    new Dictionary<string, string> { { "name", "asc" } }
+};
+
 var queryRequest = new QueryRequest
 {
-    Object = "accounts-payable/vendor",
-    Fields = new List<string> { "id", "name" }
+    Object = "accounts-payable/bill",
+    Fields = new List<string> { "key", "id", "dueDate", "postingDate", "totalTxnAmount", "totalTxnAmountDue" },
+    //Filters = filtres,
+    //FilterExpression = filterString,
+    FilterParameters = filterParameters,
+    //OrderBy = orderBy,
+    //Start = 0,
+    //Size = 2
 };
 var reponseQuery = await intacctService.Query(queryRequest, token.AccessToken);
 Console.WriteLine("\nRequête - Succès : " + reponseQuery.IsSuccessful);

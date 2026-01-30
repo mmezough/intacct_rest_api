@@ -59,7 +59,7 @@ public class IntacctService
     /// </summary>
     public async Task<RestResponse> Query(QueryRequest request, string accessToken)
     {
-        var requete = new RestRequest("service/core/query", Method.Post);
+        var requete = new RestRequest("services/core/query", Method.Post);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
         requete.AddJsonBody(request);
         return await _client.ExecuteAsync(requete);
@@ -76,7 +76,7 @@ public class IntacctService
             Query = request,
             FileType = fileType.ToString().ToLowerInvariant()
         };
-        var requete = new RestRequest("service/core/export", Method.Post);
+        var requete = new RestRequest("services/core/export", Method.Post);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
         requete.AddJsonBody(body);
         return await _client.ExecuteAsync(requete);
