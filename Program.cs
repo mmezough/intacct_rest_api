@@ -2,6 +2,7 @@ using intacct_rest_api.Models;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using RestSharp;
+using System.IO;
 
 // ========== 1. Configuration ==========
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
@@ -71,9 +72,23 @@ if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content
 }
 
 // ========== 5. Exportation (PDF) ==========
-var reponseExport = await intacctService.Export(queryRequest, ExportFileType.Pdf, token.AccessToken);
+var fileType = ExportFileType.Pdf;
+var reponseExport = await intacctService.Export(queryRequest, fileType, token.AccessToken);
 Console.WriteLine("\nExportation PDF - Succès : " + reponseExport.IsSuccessful);
+
 if (reponseExport.IsSuccessful && reponseExport.RawBytes?.Length > 0)
+{
     Console.WriteLine("Exportation PDF - Taille : " + reponseExport.RawBytes!.Length + " octets");
+
+    // Télécharger dans le dossier de l'exe : object-id-ddMMyyyy-HHmmss.ext
+    var objectPart = queryRequest.Object.Replace("/", "-");
+    var now = DateTime.Now;
+    var ext = "." + fileType.ToString().ToLowerInvariant();
+    var nomFichier = $"{objectPart}-export-{now:ddMMyyyy}-{now:HHmmss}{ext}";
+    var dossierExe = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+    var cheminComplet = Path.Combine(dossierExe, nomFichier);
+    File.WriteAllBytes(cheminComplet, reponseExport.RawBytes);
+    Console.WriteLine("Fichier enregistré : " + cheminComplet);
+}
 
 Console.ReadLine();
