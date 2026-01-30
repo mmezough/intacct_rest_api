@@ -177,32 +177,48 @@ Exemple : deux filtres, on veut « filtre 1 ET filtre 2 » → `FilterExpression
 
 ---
 
-## Exemple complet : construire une Query
+## Exemple complet : construire une Query (comme dans Program.cs)
 
 ```csharp
-var filters = new List<Dictionary<string, object>>
+var queryObject = "accounts-payable/bill";
+var queryFields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount" };
+
+var queryFilters = new List<Dictionary<string, object>>
 {
     Filter.GreaterThan("totalTxnAmount", "100"),
     Filter.Between("postingDate", new DateTime(2025, 1, 1), new DateTime(2025, 1, 31))
 };
-var expr = FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1));
-var filterExpressionString = FilterExpression.Build(filters, expr);  // "1 and 2"
 
-var request = new QueryRequest
+var queryFilterExpression = FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1));
+var queryFilterExpressionString = FilterExpression.Build(queryFilters, queryFilterExpression);
+
+var queryFilterParam = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false };
+var querySort = new List<Dictionary<string, string>> { new() { ["totalTxnAmount"] = "desc" } };
+
+var queryRequest = new QueryRequest
 {
-    Object = "accounts-payable/bill",
-    Fields = new List<string> { "id", "billNumber", "postingDate", "totalTxnAmount" },
-    Filters = filters,
-    FilterExpression = filterExpressionString,
-    FilterParameters = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false },
-    OrderBy = new List<Dictionary<string, string>> { new() { ["totalTxnAmount"] = "desc" } },
+    Object = queryObject,
+    Fields = queryFields,
+    Filters = queryFilters,
+    FilterExpression = queryFilterExpressionString,
+    FilterParameters = queryFilterParam,
+    OrderBy = querySort,
     Start = 1,
     Size = 100
 };
 
-var response = await intacctService.Query(request, token.AccessToken);
-var queryResponse = JsonConvert.DeserializeObject<QueryResponse>(response.Content);
-// queryResponse.Result = lignes, queryResponse.Meta = pagination
+var reponseQuery = await intacctService.Query(queryRequest, token.AccessToken);
+
+if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content))
+{
+    var queryResponse = JsonConvert.DeserializeObject<QueryResponse>(reponseQuery.Content);
+    if (queryResponse != null)
+    {
+        // queryResponse.Result = lignes, queryResponse.Meta = pagination
+        Console.WriteLine("Résultats : " + queryResponse.Result.Count + " enregistrement(s)");
+        Console.WriteLine("Meta - TotalCount : " + queryResponse.Meta.TotalCount + ", Start : " + queryResponse.Meta.Start + ", PageSize : " + queryResponse.Meta.PageSize);
+    }
+}
 ```
 
 ---
