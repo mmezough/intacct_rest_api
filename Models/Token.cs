@@ -1,13 +1,15 @@
 using Newtonsoft.Json;
 using RestSharp;
 
-class IntacctToken
+namespace intacct_rest_api.Models;
+
+public class Token
 {
-    public IntacctToken(RestResponse restResponse)
+    public Token(RestResponse restResponse)
     {
         if (string.IsNullOrWhiteSpace(restResponse.Content)) return;
 
-        // Remplir les propriétés de l'objet courant avec les données JSON de la réponse
+        // Remplir les propriÃ©tÃ©s de l'objet courant avec les donnÃ©es JSON de la rÃ©ponse
         JsonConvert.PopulateObject(restResponse.Content, this);
     }
 

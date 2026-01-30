@@ -1,34 +1,48 @@
-﻿using Microsoft.Extensions.Configuration;
+using intacct_rest_api.Models;
+using Microsoft.Extensions.Configuration;
 using RestSharp;
 
-// 1. Charger la configuration
+// --- Configuration ---
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
-
-// --- CONFIGURATION (Les Identifiants) ---
 var urlBase = "https://api.intacct.com/ia/api/v1/";
 var idClient = config["IdClient"];
 var secretClient = config["SecretClient"];
 var utilisateur = config["Utilisateur"];
 
-var intacctService = new IntacctService(urlBase, idClient, secretClient, utilisateur);
-var reponseAuth = await intacctService.ObtenirToken();
+var intacctService = new IntacctService(urlBase, idClient!, secretClient!, utilisateur!);
 
+// --- 1. Auth : obtenir le token ---
+var reponseAuth = await intacctService.ObtenirToken();
 if (!reponseAuth.IsSuccessful)
 {
     Console.WriteLine("Erreur lors de l'authentification : " + reponseAuth.Content);
     return;
 }
 
-var intacctToken = new IntacctToken(reponseAuth);
-Console.WriteLine("Token d'accès : " + intacctToken.AccessToken.Substring(0, 40));
-Console.WriteLine("Date d'expiration : " + intacctToken.DateExpiration);
-Console.WriteLine("Est expiré ? : " + intacctToken.EstExpire);
-Console.ReadLine();
+var token = new Token(reponseAuth);
+Console.WriteLine("Token d'accès : " + token.AccessToken.Substring(0, 40) + "...");
+Console.WriteLine("Date d'expiration : " + token.DateExpiration);
+Console.WriteLine("Est expiré ? : " + token.EstExpire);
 
-// Rafraichir un token
-var reponseRafraichir = await intacctService.RafraichirToken(intacctToken.RefreshToken);
+// --- Plus tard : rafraîchir / révoquer ---
+// var reponseRafraichir = await intacctService.RafraichirToken(token.RefreshToken);
+// var revokeOk = await intacctService.RevokerToken(token.AccessToken);
 
+// --- 2. Exemple requête ---
+var queryRequest = new QueryRequest
+{
+    Object = "accounts-payable/vendor",
+    Fields = new List<string> { "id", "name" }
+};
+var reponseQuery = await intacctService.Query(queryRequest, token.AccessToken);
+Console.WriteLine("\nRequête - Succès : " + reponseQuery.IsSuccessful);
+if (reponseQuery.IsSuccessful)
+    Console.WriteLine("Requête - Contenu : " + (reponseQuery.Content ?? "").Substring(0, Math.Min(200, reponseQuery.Content?.Length ?? 0)) + "...");
 
-// Revoker un token
-//var revokerToken = await intacctService.RevokerToken(reponseAuth.AccessToken);
+// --- 3. Exemple exportation (PDF) ---
+var reponseExport = await intacctService.Export(queryRequest, ExportFileType.Pdf, token.AccessToken);
+Console.WriteLine("\nExportation PDF - Succès : " + reponseExport.IsSuccessful);
+if (reponseExport.IsSuccessful && reponseExport.RawBytes?.Length > 0)
+    Console.WriteLine("Exportation PDF - Taille : " + reponseExport.RawBytes!.Length + " octets");
+
 Console.ReadLine();

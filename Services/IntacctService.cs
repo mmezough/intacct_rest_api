@@ -1,4 +1,5 @@
-﻿using RestSharp;
+using intacct_rest_api.Models;
+using RestSharp;
 
 public class IntacctService
 {
@@ -51,5 +52,33 @@ public class IntacctService
 
         var reponse = await _client.ExecuteAsync(requete);
         return reponse.IsSuccessful;
+    }
+
+    /// <summary>
+    /// Exécute une requête sur l'API Intacct (endpoint /service/core/query).
+    /// </summary>
+    public async Task<RestResponse> Query(QueryRequest request, string accessToken)
+    {
+        var requete = new RestRequest("service/core/query", Method.Post);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        requete.AddJsonBody(request);
+        return await _client.ExecuteAsync(requete);
+    }
+
+    /// <summary>
+    /// Exporte le résultat d'une requête en fichier (endpoint /service/core/export).
+    /// Même requête que Query, avec un format de fichier (pdf, csv, word, xml, xlsx).
+    /// </summary>
+    public async Task<RestResponse> Export(QueryRequest request, ExportFileType fileType, string accessToken)
+    {
+        var body = new ExportRequest
+        {
+            Query = request,
+            FileType = fileType.ToString().ToLowerInvariant()
+        };
+        var requete = new RestRequest("service/core/export", Method.Post);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        requete.AddJsonBody(body);
+        return await _client.ExecuteAsync(requete);
     }
 }
