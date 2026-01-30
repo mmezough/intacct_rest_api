@@ -35,23 +35,29 @@ Console.WriteLine("Est expiré ? : " + token.EstExpire);
 // var revokeOk = await intacctService.RevokerToken(token.AccessToken);
 
 // ========== 3. Requête Query ==========
-var filtres = new List<Dictionary<string, object>>
+var queryObject = "accounts-payable/bill";
+var queryFields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount" };
+
+var queryFilters = new List<Dictionary<string, object>>
 {
     Filter.GreaterThan("totalTxnAmount", "100"),
-    //Filter.Between("postingDate", "2025-01-01", "2025-01-31"),
-    Filter.Between("postingDate", new DateTime(2025, 1, 1).ToString("yyyy-MM-dd"), new DateTime(2025, 1, 31).ToString("yyyy-MM-dd"))
+    Filter.Between("postingDate", new DateTime(2025, 1, 1), new DateTime(2025, 1, 31))
 };
-var filtreExpression = FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1));
-var filterString = FilterExpression.Build(filtres, filtreExpression);
+
+var queryFilterExpression = FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1));
+var queryFilterExpressionString = FilterExpression.Build(queryFilters, queryFilterExpression);
+
+var queryFilterParam = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false };
+var querySort = new List<Dictionary<string, string>> { new() { ["totalTxnAmount"] = "desc" } };
 
 var queryRequest = new QueryRequest
 {
-    Object = "accounts-payable/bill",
-    Fields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount" },
-    Filters = filtres,
-    FilterExpression = filterString,
-    FilterParameters = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false },
-    OrderBy = new List<Dictionary<string, string>> { new() { ["totalTxnAmount"] = "desc" } },
+    Object = queryObject,
+    Fields = queryFields,
+    Filters = queryFilters,
+    FilterExpression = queryFilterExpressionString,
+    FilterParameters = queryFilterParam,
+    OrderBy = querySort,
     Start = 1,
     Size = 100
 };
