@@ -112,7 +112,7 @@ public class IntacctService
     /// Crée une facture via POST /objects/accounts-receivable/invoice.
     /// Corps minimal : customer (objet { id }), invoiceDate, dueDate, lines (txnAmount, glAccount objet, dimensions.customer/location/department objets). En C# on peut écrire .Customer = "CL0170", .Dimensions.Location = "DEMO_1".
     /// </summary>
-    public async Task<RestResponse> CreateInvoice(InvoiceCreateRequest request, string accessToken)
+    public async Task<RestResponse> CreateInvoice(CreateInvoice request, string accessToken)
     {
         var requete = new RestRequest("objects/accounts-receivable/invoice", Method.Post);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
