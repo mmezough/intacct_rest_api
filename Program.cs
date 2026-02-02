@@ -1,12 +1,6 @@
 using intacct_rest_api.Models;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
-using System.Globalization;
-
-//var culture = CultureInfo.GetCultureInfo("en-US");
-//Thread.CurrentThread.CurrentCulture = culture;
-//Thread.CurrentThread.CurrentUICulture = culture;
-
 
 // ========== 1. Configuration ==========
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
