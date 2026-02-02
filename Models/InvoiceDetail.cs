@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace intacct_rest_api.Models;
 
@@ -68,19 +69,6 @@ public class InvoiceHeader
     [JsonProperty("totalTxnAmountDue")]
     public string TotalTxnAmountDue { get; set; } = string.Empty;
 
-    [JsonProperty("moduleKey")]
-    public string ModuleKey { get; set; } = string.Empty;
-
-    [JsonProperty("webURL")]
-    public string WebUrl { get; set; } = string.Empty;
-
-    /// <summary>Exemple de champ personnalisé (namespace nsp::).</summary>
-    [JsonProperty("nsp::REF_ERP")]
-    public string? NspRefErp { get; set; }
-
-    [JsonProperty("href")]
-    public string Href { get; set; } = string.Empty;
-
     /// <summary>Client associé à la facture.</summary>
     [JsonProperty("customer")]
     public InvoiceCustomer Customer { get; set; } = new();
@@ -92,6 +80,13 @@ public class InvoiceHeader
     /// <summary>Lignes de facture. On ne garde que quelques champs clés.</summary>
     [JsonProperty("lines")]
     public List<InvoiceLine> Lines { get; set; } = new();
+
+    /// <summary>
+    /// Champs personnalisés (ex. préfixés par nsp::) et autres propriétés non mappées.
+    /// On peut filtrer par clé commençant par "nsp::" pour récupérer les custom fields.
+    /// </summary>
+    [JsonExtensionData]
+    public IDictionary<string, JToken>? CustomFields { get; set; }
 }
 
 /// <summary>Informations principales du client sur la facture.</summary>
@@ -154,13 +149,15 @@ public class InvoiceLine
     [JsonProperty("glAccount")]
     public InvoiceGlAccount GlAccount { get; set; } = new();
 
-    /// <summary>Compte client (compte de contrepartie).</summary>
-    [JsonProperty("overrideOffsetGLAccount")]
-    public InvoiceOffsetGlAccount OverrideOffsetGlAccount { get; set; } = new();
-
     /// <summary>Dimensions principales de la ligne (lieu, client).</summary>
     [JsonProperty("dimensions")]
     public InvoiceLineDimensions Dimensions { get; set; } = new();
+
+    /// <summary>
+    /// Champs personnalisés de la ligne (ex. nsp::xxx) et autres propriétés non mappées.
+    /// </summary>
+    [JsonExtensionData]
+    public IDictionary<string, JToken>? CustomFields { get; set; }
 }
 
 /// <summary>Compte général associé à la ligne.</summary>
@@ -174,25 +171,6 @@ public class InvoiceGlAccount
 
     [JsonProperty("name")]
     public string Name { get; set; } = string.Empty;
-
-    [JsonProperty("href")]
-    public string Href { get; set; } = string.Empty;
-}
-
-/// <summary>Compte de contrepartie (client) associé à la ligne.</summary>
-public class InvoiceOffsetGlAccount
-{
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
-
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonProperty("name")]
-    public string Name { get; set; } = string.Empty;
-
-    [JsonProperty("href")]
-    public string Href { get; set; } = string.Empty;
 }
 
 /// <summary>Dimensions utiles pour le cours : lieu et client.</summary>
@@ -216,9 +194,6 @@ public class InvoiceLocationDimension
 
     [JsonProperty("name")]
     public string Name { get; set; } = string.Empty;
-
-    [JsonProperty("href")]
-    public string Href { get; set; } = string.Empty;
 }
 
 /// <summary>Dimension client sur la ligne (peut différer du client de l'en-tête).</summary>
@@ -232,8 +207,5 @@ public class InvoiceCustomerDimension
 
     [JsonProperty("name")]
     public string Name { get; set; } = string.Empty;
-
-    [JsonProperty("href")]
-    public string Href { get; set; } = string.Empty;
 }
 

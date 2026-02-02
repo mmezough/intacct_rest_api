@@ -251,10 +251,10 @@ Ces endpoints renvoient un schéma **spécifique à l’objet** (ici : facture).
   - `ia::result` → `List<InvoiceReference>` (key, id, href).
   - `ia::meta` → `InvoiceReferenceListMeta` (totalCount, start, pageSize).
 - `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. (fichier `Models/InvoiceDetail.cs`) modélisent le **détail d’une facture** :
-  - En-tête : id, key, invoiceNumber, state, dates, montants, client, devise, webURL, `nsp::REF_ERP`, href.
-  - Lignes : compte de résultat, compte client, montants, lieu (dimension location), client (dimension customer), etc.
+  - En-tête : id, key, invoiceNumber, state, dates, montants, client, devise, et un dictionnaire `CustomFields` pour les champs personnalisés (ex. `nsp::REF_ERP`).
+  - Lignes : compte de résultat, compte client, montants, lieu (dimension location), client (dimension customer), etc., plus un dictionnaire `CustomFields` pour les champs personnalisés de ligne.
 
-On utilise **Newtonsoft.Json** (`[JsonProperty]`) pour mapper exactement les noms de champs retournés par l’API (`"ia::result"`, `"invoiceNumber"`, `"nsp::REF_ERP"`, etc.).
+On utilise **Newtonsoft.Json** (`[JsonProperty]`, `[JsonExtensionData]`) pour mapper exactement les noms de champs retournés par l’API (`"ia::result"`, `"invoiceNumber"`, champs commençant par `"nsp::"`, etc.) et exposer les champs personnalisés dans des dictionnaires clé/valeur.
 
 ### Exemple de flux dans `Program.cs`
 
