@@ -71,7 +71,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, désérialisation, Export, GET liste de factures, GET détail d’une facture, enregistrement du fichier. |
+| **Program.cs** | Point d’entrée : configuration, auth, Query, désérialisation, Export, GET liste/détail factures, POST facture (création), d’une facture, enregistrement du fichier. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
 | **Models/Token.cs** | Modèle du token OAuth (AccessToken, RefreshToken, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
@@ -83,7 +83,8 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/ExportFileType.cs** | Enum des formats d’export : Pdf, Csv, Word, Xml, Xlsx. |
 | **Models/InvoiceReference.cs** | Modèles pour la liste de factures : `InvoiceReference` (key, id, href), `InvoiceReferenceListResponse` (Result uniquement). |
 | **Models/InvoiceDetail.cs** | Modèles pour le détail d’une facture (en-tête + quelques lignes) : `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey. |
+| **Models/Invoice/InvoiceCreateRequest.cs** | Modèle minimal POST facture : `InvoiceCreateRequest` (customer.id, invoiceDate, dueDate, lines). System.Text.Json, comme Query/Export. |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice. |
 
 ---
 
@@ -271,6 +272,19 @@ Ce flux permet de comparer visuellement :
 
 - **Query** : très générique (n’importe quel object / fields), filtre / tri / pagination, export possible.
 - **GET facture** : schéma spécialisé, pratique pour lire un enregistrement précis ou en parcourir quelques-uns, mais pas pour les extractions avec critères métier.
+
+---
+
+## POST facture (création)
+
+Le projet permet de **créer une facture** via **POST** `/objects/accounts-receivable/invoice` avec un **modèle minimal** :
+
+- **En-tête** : `customer` (id), `invoiceDate`, `dueDate`.
+- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (id), `dimensions.customer` (id).
+
+Les modèles sont dans **Models/Invoice/InvoiceCreateRequest.cs** (`InvoiceCreateRequest`, `InvoiceCreateCustomerRef`, `InvoiceCreateLine`, `InvoiceCreateLineGlAccount`, `InvoiceCreateLineDimensions`, `InvoiceCreateLineDimensionCustomer`). On utilise **System.Text.Json** (`[JsonPropertyName]`) pour la sérialisation, comme pour Query et Export.
+
+**CreateInvoice(request, accessToken)** envoie un POST avec le corps JSON et l'en-tête `Authorization: Bearer <token>`. En démo (option 4 ou 5), on construit un exemple avec client CL0170, dates 2025-12-06 / 2025-12-31, une ligne de 100 avec compte 701000 et dimension client CL0170.
 
 ---
 

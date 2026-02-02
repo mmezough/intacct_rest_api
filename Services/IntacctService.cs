@@ -1,5 +1,6 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
+using intacct_rest_api.Models.Invoice;
 using intacct_rest_api.Models.Query;
 using RestSharp;
 
@@ -104,6 +105,18 @@ public class IntacctService
     {
         var requete = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Get);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
+        return await _client.ExecuteAsync(requete);
+    }
+
+    /// <summary>
+    /// Crée une facture via POST /objects/accounts-receivable/invoice.
+    /// Corps minimal : customer (id), invoiceDate, dueDate, lines (txnAmount, glAccount.id, dimensions.customer.id).
+    /// </summary>
+    public async Task<RestResponse> CreateInvoice(InvoiceCreateRequest request, string accessToken)
+    {
+        var requete = new RestRequest("objects/accounts-receivable/invoice", Method.Post);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        requete.AddJsonBody(request);
         return await _client.ExecuteAsync(requete);
     }
 }

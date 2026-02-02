@@ -1,5 +1,6 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
+using intacct_rest_api.Models.Invoice;
 using intacct_rest_api.Models.Query;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
@@ -35,8 +36,9 @@ Console.WriteLine("\nChoisissez le scénario à exécuter :");
 Console.WriteLine("1 - Query + Export (bill)");
 Console.WriteLine("2 - GET factures (liste)");
 Console.WriteLine("3 - GET facture (détail)");
-Console.WriteLine("4 - Tous les scénarios");
-Console.Write("\nVotre choix (1/2/3/4) : ");
+Console.WriteLine("4 - POST facture (création)");
+Console.WriteLine("5 - Tous les scénarios");
+Console.Write("\nVotre choix (1/2/3/4/5) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -51,9 +53,13 @@ switch (choix)
         await RunGetInvoiceDetailAsync(intacctService, token);
         break;
     case "4":
+        await RunInvoiceCreateAsync(intacctService, token);
+        break;
+    case "5":
         await RunQueryAndExportAsync(intacctService, token);
         await RunGetInvoicesAsync(intacctService, token);
         await RunInvoiceDetailAfterListAsync(intacctService, token);
+        await RunInvoiceCreateAsync(intacctService, token);
         break;
     default:
         Console.WriteLine("\nChoix non reconnu, aucun scénario exécuté.");
@@ -188,7 +194,7 @@ static async Task RunGetInvoiceDetailAsync(IntacctService intacctService, Token 
 
 static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, Token token)
 {
-    // Variante utilisée pour le scénario "4 - Tous les scénarios" :
+    // Variante utilisée pour le scénario "5 - Tous les scénarios" :
     // on récupère d'abord la liste puis on prend la première key.
     var reponseInvoices = await intacctService.GetInvoices(token.AccessToken);
     if (!reponseInvoices.IsSuccessful || string.IsNullOrWhiteSpace(reponseInvoices.Content))
@@ -230,4 +236,34 @@ static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, 
             }
         }
     }
+}
+
+static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
+{
+    // POST facture : modèle minimal (customer, dates, lignes avec txnAmount, glAccount, dimensions.customer)
+    var createRequest = new InvoiceCreateRequest
+    {
+        Customer = new InvoiceCreateCustomerRef { Id = "CL0170" },
+        InvoiceDate = "2025-12-06",
+        DueDate = "2025-12-31",
+        Lines =
+        [
+            new InvoiceCreateLine
+            {
+                TxnAmount = "100",
+                GlAccount = new InvoiceCreateLineGlAccount { Id = "701000" },
+                Dimensions = new InvoiceCreateLineDimensions
+                {
+                    Customer = new InvoiceCreateLineDimensionCustomer { Id = "CL0170" }
+                }
+            }
+        ]
+    };
+
+    var reponse = await intacctService.CreateInvoice(createRequest, token.AccessToken);
+    Console.WriteLine("\nPOST invoice - Succès : " + reponse.IsSuccessful);
+    if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
+        Console.WriteLine("Réponse : " + reponse.Content);
+    if (reponse.Headers?.FirstOrDefault(h => h.Name?.Equals("Location", StringComparison.OrdinalIgnoreCase) == true)?.Value is { } location)
+        Console.WriteLine("Location : " + location);
 }
