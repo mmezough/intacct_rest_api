@@ -240,7 +240,7 @@ static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, 
 
 static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
 {
-    // POST facture : modèle minimal (customer, dates, lignes avec txnAmount, glAccount, dimensions.customer = strings)
+    // POST facture : customer, glAccount, dimensions.* sont des objets { "id": "..." } ; on peut écrire .Customer = "CL0170", .Location = "DEMO_1".
     var createRequest = new InvoiceCreateRequest
     {
         Customer = "CL0170",
@@ -252,7 +252,11 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
             {
                 TxnAmount = "100",
                 GlAccount = "701000",
-                Dimensions = new InvoiceCreateLineDimensions { Customer = "CL0170" }
+                Dimensions = new InvoiceCreateLineDimensions
+                {
+                    Customer = "CL0170",
+                    Location = "DEMO_1"
+                }
             }
         ]
     };

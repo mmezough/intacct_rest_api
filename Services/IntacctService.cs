@@ -110,7 +110,7 @@ public class IntacctService
 
     /// <summary>
     /// Crée une facture via POST /objects/accounts-receivable/invoice.
-    /// Corps minimal : customer (string), invoiceDate, dueDate, lines (txnAmount, glAccount string, dimensions.customer string).
+    /// Corps minimal : customer (objet { id }), invoiceDate, dueDate, lines (txnAmount, glAccount objet, dimensions.customer/location/department objets). En C# on peut écrire .Customer = "CL0170", .Dimensions.Location = "DEMO_1".
     /// </summary>
     public async Task<RestResponse> CreateInvoice(InvoiceCreateRequest request, string accessToken)
     {
