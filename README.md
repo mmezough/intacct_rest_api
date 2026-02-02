@@ -83,7 +83,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/ExportFileType.cs** | Enum des formats d’export : Pdf, Csv, Word, Xml, Xlsx. |
 | **Models/InvoiceReference.cs** | Modèles pour la liste de factures : `InvoiceReference` (key, id, href), `InvoiceReferenceListResponse` (Result uniquement). |
 | **Models/InvoiceDetail.cs** | Modèles pour le détail d’une facture (en-tête + quelques lignes) : `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. |
-| **Models/Invoice/InvoiceCreateRequest.cs** | Modèle minimal POST facture : `InvoiceCreateRequest` (customer.id, invoiceDate, dueDate, lines). System.Text.Json, comme Query/Export. |
+| **Models/Invoice/InvoiceCreateRequest.cs** | Modèle minimal POST facture : `InvoiceCreateRequest` (customer string, invoiceDate, dueDate, lines avec txnAmount, glAccount string, dimensions.customer string). System.Text.Json, comme Query/Export. |
 | **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice. |
 
 ---
@@ -279,10 +279,10 @@ Ce flux permet de comparer visuellement :
 
 Le projet permet de **créer une facture** via **POST** `/objects/accounts-receivable/invoice` avec un **modèle minimal** :
 
-- **En-tête** : `customer` (id), `invoiceDate`, `dueDate`.
-- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (id), `dimensions.customer` (id).
+- **En-tête** : `customer` (string, id client), `invoiceDate`, `dueDate`.
+- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (string), `dimensions.customer` (string).
 
-Les modèles sont dans **Models/Invoice/InvoiceCreateRequest.cs** (`InvoiceCreateRequest`, `InvoiceCreateCustomerRef`, `InvoiceCreateLine`, `InvoiceCreateLineGlAccount`, `InvoiceCreateLineDimensions`, `InvoiceCreateLineDimensionCustomer`). On utilise **System.Text.Json** (`[JsonPropertyName]`) pour la sérialisation, comme pour Query et Export.
+Les modèles sont dans **Models/Invoice/InvoiceCreateRequest.cs** (`InvoiceCreateRequest`, `InvoiceCreateLine`, `InvoiceCreateLineDimensions`). On utilise des **chaînes** pour les ids : `customer`, `glAccount`, `dimensions.customer`. Sérialisation **System.Text.Json** (`[JsonPropertyName]`), comme Query et Export.
 
 **CreateInvoice(request, accessToken)** envoie un POST avec le corps JSON et l'en-tête `Authorization: Bearer <token>`. En démo (option 4 ou 5), on construit un exemple avec client CL0170, dates 2025-12-06 / 2025-12-31, une ligne de 100 avec compte 701000 et dimension client CL0170.
 

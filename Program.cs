@@ -240,10 +240,10 @@ static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, 
 
 static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
 {
-    // POST facture : modèle minimal (customer, dates, lignes avec txnAmount, glAccount, dimensions.customer)
+    // POST facture : modèle minimal (customer, dates, lignes avec txnAmount, glAccount, dimensions.customer = strings)
     var createRequest = new InvoiceCreateRequest
     {
-        Customer = new InvoiceCreateCustomerRef { Id = "CL0170" },
+        Customer = "CL0170",
         InvoiceDate = "2025-12-06",
         DueDate = "2025-12-31",
         Lines =
@@ -251,11 +251,8 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
             new InvoiceCreateLine
             {
                 TxnAmount = "100",
-                GlAccount = new InvoiceCreateLineGlAccount { Id = "701000" },
-                Dimensions = new InvoiceCreateLineDimensions
-                {
-                    Customer = new InvoiceCreateLineDimensionCustomer { Id = "CL0170" }
-                }
+                GlAccount = "701000",
+                Dimensions = new InvoiceCreateLineDimensions { Customer = "CL0170" }
             }
         ]
     };

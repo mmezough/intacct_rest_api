@@ -4,12 +4,12 @@ namespace intacct_rest_api.Models.Invoice;
 
 /// <summary>
 /// Corps minimal pour créer une facture (POST /objects/accounts-receivable/invoice).
-/// Cohérent avec Query/Export : sérialisation System.Text.Json (JsonPropertyName).
+/// Champs simplifiés : customer, glAccount, dimensions.customer sont des chaînes (id).
 /// </summary>
 public class InvoiceCreateRequest
 {
     [JsonPropertyName("customer")]
-    public InvoiceCreateCustomerRef Customer { get; set; } = new();
+    public string Customer { get; set; } = string.Empty;
 
     [JsonPropertyName("invoiceDate")]
     public string InvoiceDate { get; set; } = string.Empty;
@@ -21,43 +21,22 @@ public class InvoiceCreateRequest
     public List<InvoiceCreateLine> Lines { get; set; } = new();
 }
 
-/// <summary>Référence client sur l'en-tête (id uniquement).</summary>
-public class InvoiceCreateCustomerRef
-{
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
-}
-
-/// <summary>Ligne de facture minimale : montant, compte, dimension client.</summary>
+/// <summary>Ligne de facture minimale : montant, compte (id), dimension client (id).</summary>
 public class InvoiceCreateLine
 {
     [JsonPropertyName("txnAmount")]
     public string TxnAmount { get; set; } = string.Empty;
 
     [JsonPropertyName("glAccount")]
-    public InvoiceCreateLineGlAccount GlAccount { get; set; } = new();
+    public string GlAccount { get; set; } = string.Empty;
 
     [JsonPropertyName("dimensions")]
     public InvoiceCreateLineDimensions Dimensions { get; set; } = new();
 }
 
-/// <summary>Compte général de la ligne (id uniquement).</summary>
-public class InvoiceCreateLineGlAccount
-{
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
-}
-
-/// <summary>Dimensions de la ligne (client uniquement).</summary>
+/// <summary>Dimensions de la ligne : customer = id (string).</summary>
 public class InvoiceCreateLineDimensions
 {
     [JsonPropertyName("customer")]
-    public InvoiceCreateLineDimensionCustomer Customer { get; set; } = new();
-}
-
-/// <summary>Dimension client sur la ligne (id uniquement).</summary>
-public class InvoiceCreateLineDimensionCustomer
-{
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
+    public string Customer { get; set; } = string.Empty;
 }
