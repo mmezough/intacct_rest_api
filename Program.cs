@@ -36,7 +36,7 @@ Console.WriteLine("Est expiré ? : " + token.EstExpire);
 
 // ========== 3. Requête Query ==========
 var queryObject = "accounts-payable/bill";
-var queryFields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount" };
+var queryFields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount", "entity.id" };
 
 var queryFilters = new List<Dictionary<string, object>>
 {
