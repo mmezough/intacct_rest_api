@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace intacct_rest_api.Models;
+namespace intacct_rest_api.Models.Query;
 
 /// <summary>
 /// Paramètres optionnels pour l'évaluation des filtres.
@@ -8,10 +8,10 @@ namespace intacct_rest_api.Models;
 public class FilterParameters
 {
     [JsonPropertyName("caseSensitiveComparison")]
-    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? CaseSensitiveComparison { get; set; }
 
     [JsonPropertyName("includePrivate")]
-    [System.Text.Json.Serialization.JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IncludePrivate { get; set; }
 }

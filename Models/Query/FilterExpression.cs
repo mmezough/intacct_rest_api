@@ -1,4 +1,4 @@
-namespace intacct_rest_api.Models;
+namespace intacct_rest_api.Models.Query;
 
 /// <summary>
 /// Construit une expression de filtre à partir de références aux filtres (indices 0-based).

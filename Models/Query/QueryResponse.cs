@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace intacct_rest_api.Models;
+namespace intacct_rest_api.Models.Query;
 
 /// <summary>
 /// Réponse générique d'une requête Query. Désérialiser avec Newtonsoft (ex. JsonConvert.DeserializeObject&lt;QueryResponse&gt;(content)).

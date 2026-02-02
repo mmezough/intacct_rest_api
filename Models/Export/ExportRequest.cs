@@ -1,6 +1,7 @@
+using intacct_rest_api.Models.Query;
 using System.Text.Json.Serialization;
 
-namespace intacct_rest_api.Models;
+namespace intacct_rest_api.Models.Export;
 
 /// <summary>
 /// Corps de la requête Export : la requête Query + le format de fichier.

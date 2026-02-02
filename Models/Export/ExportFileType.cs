@@ -1,4 +1,4 @@
-namespace intacct_rest_api.Models;
+namespace intacct_rest_api.Models.Export;
 
 public enum ExportFileType
 {

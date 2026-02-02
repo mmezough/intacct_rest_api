@@ -1,4 +1,6 @@
 using intacct_rest_api.Models;
+using intacct_rest_api.Models.Export;
+using intacct_rest_api.Models.Query;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 

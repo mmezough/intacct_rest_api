@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using Newtonsoft.Json;
 
-namespace intacct_rest_api.Models;
+namespace intacct_rest_api.Models.Query;
 
 public class QueryRequest
 {

@@ -1,4 +1,4 @@
-namespace intacct_rest_api.Models;
+namespace intacct_rest_api.Models.Query;
 
 /// <summary>Helper pour construire un filtre (un dictionnaire { "$op": { "champ": valeur } }) sans logique de sérialisation.</summary>
 public static class Filter
