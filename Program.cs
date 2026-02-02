@@ -88,4 +88,55 @@ if (reponseExport.IsSuccessful && reponseExport.RawBytes?.Length > 0)
     Console.WriteLine("\nFichier enregistré : " + cheminComplet);
 }
 
+// ========== 6. GET factures (liste) ==========
+var reponseInvoices = await intacctService.GetInvoices(token.AccessToken);
+Console.WriteLine("\nGET invoices (liste) - Succès : " + reponseInvoices.IsSuccessful);
+
+InvoiceReferenceListResponse? invoiceList = null;
+if (reponseInvoices.IsSuccessful && !string.IsNullOrWhiteSpace(reponseInvoices.Content))
+{
+    invoiceList = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponseInvoices.Content);
+    if (invoiceList != null)
+    {
+        Console.WriteLine("Factures - TotalCount : " + invoiceList.Meta.TotalCount + ", Start : " + invoiceList.Meta.Start + ", PageSize : " + invoiceList.Meta.PageSize);
+
+        var premiersInvoices = invoiceList.Result.Take(3).ToList();
+        foreach (var inv in premiersInvoices)
+        {
+            Console.WriteLine($"  Invoice key={inv.Key}, id={inv.Id}, href={inv.Href}");
+        }
+    }
+}
+
+// ========== 7. GET facture (détail par key) ==========
+if (invoiceList != null && invoiceList.Result.Count > 0)
+{
+    var firstKey = invoiceList.Result[0].Key;
+    Console.WriteLine($"\nRécupération du détail de la facture avec key={firstKey} ...");
+
+    var reponseInvoice = await intacctService.GetInvoiceByKey(firstKey, token.AccessToken);
+    Console.WriteLine("GET invoice (détail) - Succès : " + reponseInvoice.IsSuccessful);
+
+    if (reponseInvoice.IsSuccessful && !string.IsNullOrWhiteSpace(reponseInvoice.Content))
+    {
+        var invoiceDetail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponseInvoice.Content);
+        if (invoiceDetail?.Invoice != null)
+        {
+            var h = invoiceDetail.Invoice;
+            Console.WriteLine($"\nFacture {h.InvoiceNumber} pour le client {h.Customer.Name}");
+            Console.WriteLine($"  Date facture : {h.InvoiceDate}, Date d'échéance : {h.DueDate}");
+            Console.WriteLine($"  Montant total (base) : {h.TotalBaseAmount} {h.Currency.BaseCurrency}, Montant total (txn) : {h.TotalTxnAmount} {h.Currency.TxnCurrency}");
+
+            if (h.Lines.Count > 0)
+            {
+                var l = h.Lines[0];
+                Console.WriteLine("\nPremière ligne :");
+                Console.WriteLine($"  Compte : {l.GlAccount.Id} - {l.GlAccount.Name}");
+                Console.WriteLine($"  Montant (base) : {l.BaseAmount}, Montant (txn) : {l.TxnAmount}");
+                Console.WriteLine($"  Lieu : {l.Dimensions.Location.Id} - {l.Dimensions.Location.Name}");
+            }
+        }
+    }
+}
+
 Console.ReadLine();

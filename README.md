@@ -1,6 +1,6 @@
 # Sage Intacct REST API – Cours / Atelier
 
-Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2, **Query** (lecture) et **Export** (PDF, CSV, etc.). Support de cours pour ateliers et onboarding.
+Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2, **Query** (lecture), **Export** (PDF, CSV, etc.) et quelques exemples de **GET** (liste / détail de factures). Support de cours pour ateliers et onboarding.
 
 ---
 
@@ -13,6 +13,7 @@ Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intac
 3. **Construire une Query** : object, fields, filtres, expression, tri, pagination.
 4. **Désérialiser** la réponse Query (Result + Meta) avec Newtonsoft.
 5. **Exporter** le résultat d’une requête en fichier (PDF, CSV, etc.) et l’enregistrer.
+6. Utiliser des **endpoints GET** pour lister des factures (références légères) et lire le **détail d’une facture** (en-tête + lignes).
 
 ---
 
@@ -70,7 +71,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, désérialisation, Export, enregistrement du fichier. |
+| **Program.cs** | Point d’entrée : configuration, auth, Query, désérialisation, Export, GET liste de factures, GET détail d’une facture, enregistrement du fichier. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
 | **Models/Token.cs** | Modèle du token OAuth (AccessToken, RefreshToken, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
@@ -80,7 +81,9 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/FilterParameters.cs** | Paramètres optionnels des filtres : CaseSensitiveComparison, IncludePrivate. |
 | **Models/ExportRequest.cs** | Corps interne de l’Export : Query + FileType. |
 | **Models/ExportFileType.cs** | Enum des formats d’export : Pdf, Csv, Word, Xml, Xlsx. |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export. |
+| **Models/InvoiceReference.cs** | Modèles pour la liste de factures (références légères) : `InvoiceReference`, `InvoiceReferenceListMeta`, `InvoiceReferenceListResponse`. |
+| **Models/InvoiceDetail.cs** | Modèles pour le détail d’une facture (en-tête + quelques lignes) : `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey. |
 
 ---
 
@@ -220,6 +223,57 @@ if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content
     }
 }
 ```
+
+---
+
+## GET factures : liste + détail
+
+En plus de Query / Export, le projet montre deux endpoints **GET** sur l’objet facture (`accounts-receivable/invoice`) :
+
+- **GET liste de factures** : `/objects/accounts-receivable/invoice`
+- **GET détail d’une facture par key** : `/objects/accounts-receivable/invoice/{key}`
+
+Ces endpoints renvoient un schéma **spécifique à l’objet** (ici : facture). Ils sont pratiques pour :
+
+- Vérifier que le token fonctionne.
+- Parcourir rapidement quelques factures existantes.
+- Montrer la différence entre un **endpoint GET orienté ressource** et le **service Query** plus générique.
+
+> ⚠️ **Limites** : la liste de factures n’est pas pensée pour de vraies extractions.
+>
+>- Pas de paramètres de pagination dans l’URL.
+>- Champs retournés limités (clé, id, href).
+>- Pour filtrer, paginer et choisir les champs retournés, **Sage recommande d’utiliser Query**.
+
+### Modèles côté C#
+
+- `InvoiceReference`, `InvoiceReferenceListMeta`, `InvoiceReferenceListResponse` (fichier `Models/InvoiceReference.cs`) modélisent la **liste de factures** :
+  - `ia::result` → `List<InvoiceReference>` (key, id, href).
+  - `ia::meta` → `InvoiceReferenceListMeta` (totalCount, start, pageSize).
+- `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. (fichier `Models/InvoiceDetail.cs`) modélisent le **détail d’une facture** :
+  - En-tête : id, key, invoiceNumber, state, dates, montants, client, devise, webURL, `nsp::REF_ERP`, href.
+  - Lignes : compte de résultat, compte client, montants, lieu (dimension location), client (dimension customer), etc.
+
+On utilise **Newtonsoft.Json** (`[JsonProperty]`) pour mapper exactement les noms de champs retournés par l’API (`"ia::result"`, `"invoiceNumber"`, `"nsp::REF_ERP"`, etc.).
+
+### Exemple de flux dans `Program.cs`
+
+Après la démo Query + Export, le programme :
+
+1. Appelle **GetInvoices(token.AccessToken)** :
+   - Désérialise la réponse dans `InvoiceReferenceListResponse`.
+   - Affiche `TotalCount`, `Start`, `PageSize`.
+   - Liste les 3 premières factures (key, id, href).
+2. Récupère la **clé** (`key`) de la première facture.
+3. Appelle **GetInvoiceByKey(key, token.AccessToken)** :
+   - Désérialise la réponse dans `InvoiceDetailResponse`.
+   - Affiche un résumé de la facture : numéro, nom du client, dates, montants, devise.
+   - Affiche un extrait de la première ligne : compte comptable, montant, lieu.
+
+Ce flux permet de comparer visuellement :
+
+- **Query** : très générique (n’importe quel object / fields), filtre / tri / pagination, export possible.
+- **GET facture** : schéma spécialisé, pratique pour lire un enregistrement précis ou en parcourir quelques-uns, mais pas pour les extractions avec critères métier.
 
 ---
 

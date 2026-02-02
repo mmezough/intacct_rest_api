@@ -81,4 +81,27 @@ public class IntacctService
         requete.AddJsonBody(body);
         return await _client.ExecuteAsync(requete);
     }
+
+    /// <summary>
+    /// Récupère une liste de factures (références légères) via GET /objects/accounts-receivable/invoice.
+    /// Cette opération est surtout utile pour des tests / découvertes ;
+    /// pour la pagination et les filtres, Sage recommande d'utiliser le service Query.
+    /// </summary>
+    public async Task<RestResponse> GetInvoices(string accessToken)
+    {
+        var requete = new RestRequest("objects/accounts-receivable/invoice", Method.Get);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        return await _client.ExecuteAsync(requete);
+    }
+
+    /// <summary>
+    /// Récupère le détail d'une facture par sa clé via GET /objects/accounts-receivable/invoice/{key}.
+    /// Le schéma de réponse est spécifique à l'objet facture (en-tête + lignes).
+    /// </summary>
+    public async Task<RestResponse> GetInvoiceByKey(string key, string accessToken)
+    {
+        var requete = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Get);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        return await _client.ExecuteAsync(requete);
+    }
 }
