@@ -23,32 +23,11 @@ public class InvoiceReference
 }
 
 /// <summary>
-/// Métadonnées pour la réponse de liste de factures.
-/// Même idée que pour Query : total, pagination, taille de page.
-/// Cette liste est surtout prévue pour des tests, pas pour de vraies extractions.
-/// </summary>
-public class InvoiceReferenceListMeta
-{
-    [JsonProperty("totalCount")]
-    public int TotalCount { get; set; }
-
-    [JsonProperty("start")]
-    public int Start { get; set; }
-
-    [JsonProperty("pageSize")]
-    public int PageSize { get; set; }
-}
-
-/// <summary>
-/// Réponse complète de la liste des factures (GET /invoice).
-/// "ia::result" contient les références, "ia::meta" les métadonnées.
+/// Réponse liste de factures (GET /invoice). On ne mappe que "ia::result".
 /// </summary>
 public class InvoiceReferenceListResponse
 {
     [JsonProperty("ia::result")]
     public List<InvoiceReference> Result { get; set; } = new();
-
-    [JsonProperty("ia::meta")]
-    public InvoiceReferenceListMeta Meta { get; set; } = new();
 }
 

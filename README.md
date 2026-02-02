@@ -81,7 +81,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/FilterParameters.cs** | Paramètres optionnels des filtres : CaseSensitiveComparison, IncludePrivate. |
 | **Models/ExportRequest.cs** | Corps interne de l’Export : Query + FileType. |
 | **Models/ExportFileType.cs** | Enum des formats d’export : Pdf, Csv, Word, Xml, Xlsx. |
-| **Models/InvoiceReference.cs** | Modèles pour la liste de factures (références légères) : `InvoiceReference`, `InvoiceReferenceListMeta`, `InvoiceReferenceListResponse`. |
+| **Models/InvoiceReference.cs** | Modèles pour la liste de factures : `InvoiceReference` (key, id, href), `InvoiceReferenceListResponse` (Result uniquement). |
 | **Models/InvoiceDetail.cs** | Modèles pour le détail d’une facture (en-tête + quelques lignes) : `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. |
 | **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey. |
 
@@ -247,10 +247,8 @@ Ces endpoints renvoient un schéma **spécifique à l’objet** (ici : facture).
 
 ### Modèles côté C#
 
-- `InvoiceReference`, `InvoiceReferenceListMeta`, `InvoiceReferenceListResponse` (fichier `Models/InvoiceReference.cs`) modélisent la **liste de factures** :
-  - `ia::result` → `List<InvoiceReference>` (key, id, href).
-  - `ia::meta` → `InvoiceReferenceListMeta` (totalCount, start, pageSize).
-- `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. (fichier `Models/InvoiceDetail.cs`) modélisent le **détail d’une facture** :
+- `InvoiceReference`, `InvoiceReferenceListResponse` (fichier `Models/InvoiceReference.cs`) : on ne mappe que `ia::result` (liste de références key, id, href).
+- `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. (fichier `Models/InvoiceDetail.cs`) : on ne mappe que `ia::result` (en-tête + lignes). Pas de meta.
   - En-tête : id, key, invoiceNumber, state, dates, montants, client, devise, et un dictionnaire `CustomFields` pour les champs personnalisés (ex. `nsp::REF_ERP`).
   - Lignes : compte de résultat, compte client, montants, lieu (dimension location), client (dimension customer), etc., plus un dictionnaire `CustomFields` pour les champs personnalisés de ligne.
 
@@ -261,8 +259,7 @@ On utilise **Newtonsoft.Json** (`[JsonProperty]`, `[JsonExtensionData]`) pour ma
 Après la démo Query + Export, le programme :
 
 1. Appelle **GetInvoices(token.AccessToken)** :
-   - Désérialise la réponse dans `InvoiceReferenceListResponse`.
-   - Affiche `TotalCount`, `Start`, `PageSize`.
+   - Désérialise la réponse dans `InvoiceReferenceListResponse` (Result uniquement).
    - Liste les 3 premières factures (key, id, href).
 2. Récupère la **clé** (`key`) de la première facture.
 3. Appelle **GetInvoiceByKey(key, token.AccessToken)** :

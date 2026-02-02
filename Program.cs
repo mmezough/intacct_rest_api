@@ -139,8 +139,6 @@ static async Task RunGetInvoicesAsync(IntacctService intacctService, Token token
         var invoiceList = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponseInvoices.Content);
         if (invoiceList != null)
         {
-            Console.WriteLine("Factures - TotalCount : " + invoiceList.Meta.TotalCount + ", Start : " + invoiceList.Meta.Start + ", PageSize : " + invoiceList.Meta.PageSize);
-
             var premiersInvoices = invoiceList.Result.Take(3).ToList();
             foreach (var inv in premiersInvoices)
             {

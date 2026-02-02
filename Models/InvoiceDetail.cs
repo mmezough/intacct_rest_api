@@ -4,31 +4,12 @@ using Newtonsoft.Json.Linq;
 namespace intacct_rest_api.Models;
 
 /// <summary>
-/// Réponse détaillée d'une facture (GET /objects/accounts-receivable/invoice/{key}).
-/// On ne projette que les champs intéressants pour le cours : en-tête + quelques lignes.
+/// Réponse détaillée d'une facture (GET /invoice/{key}). On ne mappe que "ia::result".
 /// </summary>
 public class InvoiceDetailResponse
 {
-    /// <summary>En-tête de la facture (correspond à "ia::result").</summary>
     [JsonProperty("ia::result")]
     public InvoiceHeader Invoice { get; set; } = new();
-
-    /// <summary>Métadonnées de la réponse (compteurs succès / erreurs).</summary>
-    [JsonProperty("ia::meta")]
-    public InvoiceDetailMeta Meta { get; set; } = new();
-}
-
-/// <summary>Métadonnées pour la réponse de facture unique.</summary>
-public class InvoiceDetailMeta
-{
-    [JsonProperty("totalCount")]
-    public int TotalCount { get; set; }
-
-    [JsonProperty("totalSuccess")]
-    public int TotalSuccess { get; set; }
-
-    [JsonProperty("totalError")]
-    public int TotalError { get; set; }
 }
 
 /// <summary>
