@@ -240,10 +240,10 @@ static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, 
 
 static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
 {
-    // POST facture : customer, glAccount, dimensions.* sont des objets { "id": "..." } ; on peut écrire .Customer = "CL0170", .Location = "DEMO_1".
+    // POST facture : on assigne explicitement .Id (Customer.Id, GlAccount.Id, Dimensions.Customer.Id, Dimensions.Location.Id).
     var createRequest = new InvoiceCreateRequest
     {
-        Customer = "CL0170",
+        Customer = { Id = "CL0170" },
         InvoiceDate = "2025-12-06",
         DueDate = "2025-12-31",
         Lines =
@@ -251,11 +251,11 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
             new InvoiceCreateLine
             {
                 TxnAmount = "100",
-                GlAccount = "701000",
-                Dimensions = new InvoiceCreateLineDimensions
+                GlAccount = { Id = "701000" },
+                Dimensions =
                 {
-                    Customer = "CL0170",
-                    Location = "DEMO_1"
+                    Customer = { Id = "CL0170" },
+                    Location = new InvoiceCreateIdRef { Id = "DEMO_1" }
                 }
             }
         ]

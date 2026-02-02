@@ -4,13 +4,13 @@ namespace intacct_rest_api.Models.Invoice;
 
 /// <summary>
 /// Corps minimal pour créer une facture (POST /objects/accounts-receivable/invoice).
-/// customer, glAccount et dimensions.* sont des objets { "id": "..." }. On peut assigner une string (ex. invoice.Customer = "CL0170").
+/// customer, glAccount et dimensions.* sont des objets { "id": "..." }. On assigne explicitement .Id (ex. Customer.Id = "CL0170").
 /// </summary>
 public class InvoiceCreateRequest
 {
-    /// <summary>Client : objet { "id": "..." }. Assigner une string : Customer = "CL0170".</summary>
+    /// <summary>Client : objet { "id": "..." }. Assigner : Customer.Id = "CL0170".</summary>
     [JsonPropertyName("customer")]
-    public InvoiceCreateIdRef Customer { get; set; }
+    public InvoiceCreateIdRef Customer { get; set; } = new();
 
     [JsonPropertyName("invoiceDate")]
     public string InvoiceDate { get; set; } = string.Empty;
@@ -22,27 +22,22 @@ public class InvoiceCreateRequest
     public List<InvoiceCreateLine> Lines { get; set; } = new();
 }
 
-/// <summary>
-/// Référence par id : sérialise en { "id": "..." }.
-/// Permet d'assigner une string : IdRef = "CL0170" équivaut à new InvoiceCreateIdRef { Id = "CL0170" }.
-/// </summary>
+/// <summary>Référence par id : sérialise en { "id": "..." }. Assigner explicitement .Id.</summary>
 public class InvoiceCreateIdRef
 {
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
-
-    public static implicit operator InvoiceCreateIdRef(string id) => new() { Id = id ?? string.Empty };
 }
 
-/// <summary>Ligne de facture minimale : montant, glAccount (objet), dimensions (objets).</summary>
+/// <summary>Ligne de facture minimale : montant, glAccount (objet .Id), dimensions (objets .Id).</summary>
 public class InvoiceCreateLine
 {
     [JsonPropertyName("txnAmount")]
     public string TxnAmount { get; set; } = string.Empty;
 
-    /// <summary>Compte : objet { "id": "..." }. Assigner une string : GlAccount = "701000".</summary>
+    /// <summary>Compte : objet { "id": "..." }. Assigner : GlAccount.Id = "701000".</summary>
     [JsonPropertyName("glAccount")]
-    public InvoiceCreateIdRef GlAccount { get; set; }
+    public InvoiceCreateIdRef GlAccount { get; set; } = new();
 
     [JsonPropertyName("dimensions")]
     public InvoiceCreateLineDimensions Dimensions { get; set; } = new();
@@ -50,12 +45,12 @@ public class InvoiceCreateLine
 
 /// <summary>
 /// Dimensions de la ligne : customer, location, department = objets { "id": "..." }.
-/// Assigner une string : Dimensions.Customer = "CL0170", Dimensions.Location = "DEMO_1".
+/// Assigner : Dimensions.Customer.Id = "CL0170", Dimensions.Location.Id = "DEMO_1".
 /// </summary>
 public class InvoiceCreateLineDimensions
 {
     [JsonPropertyName("customer")]
-    public InvoiceCreateIdRef Customer { get; set; }
+    public InvoiceCreateIdRef Customer { get; set; } = new();
 
     /// <summary>Dimension lieu (optionnel).</summary>
     [JsonPropertyName("location")]
