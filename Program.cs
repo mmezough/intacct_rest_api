@@ -1,7 +1,7 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
-using intacct_rest_api.Models.InvoiceLineUpdate;
+using intacct_rest_api.Models.BillLineUpdate;
 using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using Microsoft.Extensions.Configuration;
@@ -40,7 +40,7 @@ Console.WriteLine("2 - GET factures (liste)");
 Console.WriteLine("3 - GET facture (détail)");
 Console.WriteLine("4 - POST facture (création)");
 Console.WriteLine("5 - PATCH facture (mise à jour)");
-Console.WriteLine("6 - PATCH ligne de facture (mise à jour)");
+Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
 Console.WriteLine("7 - Tous les scénarios");
 Console.Write("\nVotre choix (1/2/3/4/5/6/7) : ");
 var choix = Console.ReadLine();
@@ -63,7 +63,7 @@ switch (choix)
         await RunInvoiceUpdateAsync(intacctService, token);
         break;
     case "6":
-        await RunInvoiceLineUpdateAsync(intacctService, token);
+        await RunBillLineUpdateAsync(intacctService, token);
         break;
     case "7":
         await RunQueryAndExportAsync(intacctService, token);
@@ -71,7 +71,7 @@ switch (choix)
         await RunInvoiceDetailAfterListAsync(intacctService, token);
         await RunInvoiceCreateAsync(intacctService, token);
         await RunInvoiceUpdateAsync(intacctService, token);
-        await RunInvoiceLineUpdateAsync(intacctService, token);
+        await RunBillLineUpdateAsync(intacctService, token);
         break;
     default:
         Console.WriteLine("\nChoix non reconnu, aucun scénario exécuté.");
@@ -204,11 +204,21 @@ static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token tok
     Console.WriteLine("PATCH invoice - Succès : " + reponse.IsSuccessful);
 }
 
-static async Task RunInvoiceLineUpdateAsync(IntacctService intacctService, Token token)
+static async Task RunBillLineUpdateAsync(IntacctService intacctService, Token token)
 {
-    var lineKey = "11"; // key ligne facture démo
-    var updateRequest = new InvoiceLineUpdate { Memo = "Démo atelier", TxnAmount = "150.00" };
+    var lineKey = "3"; // key ligne bill démo
+    var updateRequest = new BillLineUpdate
+    {
+        TxnAmount = "150.00",
+        Memo = "Démo bill line",
+        Dimensions = new BillLineDimensions
+        {
+            Department = new KeyIdRef { Key = "8", Id = "922" },
+            Location = new KeyIdRef { Key = "1", Id = "DEMO_1" }
+        }
+    };
+
     Console.WriteLine("Json => " + JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
-    var reponse = await intacctService.UpdateInvoiceLine(updateRequest, lineKey, token.AccessToken);
-    Console.WriteLine("PATCH invoice-line - Succès : " + reponse.IsSuccessful);
+    var reponse = await intacctService.UpdateBillLine(updateRequest, lineKey, token.AccessToken);
+    Console.WriteLine("PATCH bill-line - Succès : " + reponse.IsSuccessful);
 }

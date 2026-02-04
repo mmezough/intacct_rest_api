@@ -1,7 +1,7 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
-using intacct_rest_api.Models.InvoiceLineUpdate;
+using intacct_rest_api.Models.BillLineUpdate;
 using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using RestSharp;
@@ -135,12 +135,12 @@ public class IntacctService
     }
 
     /// <summary>
-    /// Met à jour une ligne de facture via PATCH /objects/accounts-receivable/invoice-line/{key}.
-    /// Corps minimal partiel : glAccount, txnAmount, memo, dimensions (location, customer). Key = clé de la ligne.
+    /// Met à jour une ligne de bill via PATCH /objects/accounts-payable/bill-line/{key}.
+    /// Corps minimal partiel : glAccount, txnAmount, memo, dimensions (department, location). Key = clé de la ligne.
     /// </summary>
-    public async Task<RestResponse> UpdateInvoiceLine(InvoiceLineUpdate request, string lineKey, string accessToken)
+    public async Task<RestResponse> UpdateBillLine(BillLineUpdate request, string lineKey, string accessToken)
     {
-        var requete = new RestRequest($"objects/accounts-receivable/invoice-line/{lineKey}", Method.Patch);
+        var requete = new RestRequest($"objects/accounts-payable/bill-line/{lineKey}", Method.Patch);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
         requete.AddJsonBody(request);
         return await _client.ExecuteAsync(requete);

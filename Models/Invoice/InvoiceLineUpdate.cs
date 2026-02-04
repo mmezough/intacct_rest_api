@@ -1,12 +1,12 @@
 using Newtonsoft.Json;
 
-namespace intacct_rest_api.Models.InvoiceLineUpdate;
+namespace intacct_rest_api.Models.BillLineUpdate;
 
 /// <summary>
-/// Corps minimal pour modifier une ligne de facture (PATCH /objects/accounts-receivable/invoice-line/{key}).
+/// Corps minimal pour modifier une ligne de bill (PATCH /objects/accounts-payable/bill-line/{key}).
 /// Seuls les champs renseignés sont envoyés ; les null sont ignorés à la sérialisation.
 /// </summary>
-public class InvoiceLineUpdate
+public class BillLineUpdate
 {
     [JsonProperty("glAccount", NullValueHandling = NullValueHandling.Ignore)]
     public GlAccountRef? GlAccount { get; set; }
@@ -18,7 +18,7 @@ public class InvoiceLineUpdate
     public string? Memo { get; set; }
 
     [JsonProperty("dimensions", NullValueHandling = NullValueHandling.Ignore)]
-    public InvoiceLineDimensions? Dimensions { get; set; }
+    public BillLineDimensions? Dimensions { get; set; }
 }
 
 /// <summary>
@@ -34,15 +34,15 @@ public class GlAccountRef
 }
 
 /// <summary>
-/// Dimensions de la ligne : 2 dimensions pour faciliter la compréhension (location, customer).
+/// Dimensions de la ligne : 2 dimensions pour faciliter la compréhension (department, location).
 /// </summary>
-public class InvoiceLineDimensions
+public class BillLineDimensions
 {
+    [JsonProperty("department", NullValueHandling = NullValueHandling.Ignore)]
+    public KeyIdRef? Department { get; set; }
+
     [JsonProperty("location", NullValueHandling = NullValueHandling.Ignore)]
     public KeyIdRef? Location { get; set; }
-
-    [JsonProperty("customer", NullValueHandling = NullValueHandling.Ignore)]
-    public KeyIdRef? Customer { get; set; }
 }
 
 /// <summary>
