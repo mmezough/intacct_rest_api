@@ -213,8 +213,8 @@ static async Task RunBillLineUpdateAsync(IntacctService intacctService, Token to
         Memo = "Démo bill line",
         Dimensions = new BillLineDimensions
         {
-            Department = new KeyIdRef { Key = "8", Id = "922" },
-            Location = new KeyIdRef { Key = "1", Id = "DEMO_1" }
+            Department = new KeyIdRef { Id = "922" },
+            Location = new KeyIdRef { Id = "DEMO_1" }
         }
     };
 

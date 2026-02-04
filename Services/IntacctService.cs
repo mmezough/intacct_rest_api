@@ -4,6 +4,7 @@ using intacct_rest_api.Models.InvoiceCreate;
 using intacct_rest_api.Models.BillLineUpdate;
 using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
+using Newtonsoft.Json;
 using RestSharp;
 
 public class IntacctService
@@ -142,7 +143,8 @@ public class IntacctService
     {
         var requete = new RestRequest($"objects/accounts-payable/bill-line/{lineKey}", Method.Patch);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
-        requete.AddJsonBody(request);
+        var json = JsonConvert.SerializeObject(request, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+        requete.AddStringBody(json, DataFormat.Json);
         return await _client.ExecuteAsync(requete);
     }
 }

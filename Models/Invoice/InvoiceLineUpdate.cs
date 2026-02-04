@@ -22,13 +22,10 @@ public class BillLineUpdate
 }
 
 /// <summary>
-/// Référence compte général (key et/ou id).
+/// Référence compte général (un seul identifiant : id).
 /// </summary>
 public class GlAccountRef
 {
-    [JsonProperty("key", NullValueHandling = NullValueHandling.Ignore)]
-    public string? Key { get; set; }
-
     [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
     public string? Id { get; set; }
 }
@@ -46,13 +43,10 @@ public class BillLineDimensions
 }
 
 /// <summary>
-/// Référence générique key/id pour les dimensions.
+/// Référence dimension (un seul identifiant : id).
 /// </summary>
 public class KeyIdRef
 {
-    [JsonProperty("key", NullValueHandling = NullValueHandling.Ignore)]
-    public string? Key { get; set; }
-
     [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
     public string? Id { get; set; }
 }
