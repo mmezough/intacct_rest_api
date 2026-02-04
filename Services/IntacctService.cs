@@ -2,6 +2,7 @@ using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
 using intacct_rest_api.Models.BillLineUpdate;
+using intacct_rest_api.Models.InvoiceLineUpdate;
 using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using Newtonsoft.Json;
@@ -136,8 +137,19 @@ public class IntacctService
     }
 
     /// <summary>
-    /// Met à jour une ligne de bill via PATCH /objects/accounts-payable/bill-line/{key}.
-    /// Corps minimal partiel : glAccount, txnAmount, memo, dimensions (department, location). Key = clé de la ligne.
+    /// Met à jour une ligne de facture via PATCH /objects/accounts-receivable/invoice-line/{key}. Body sérialisé avec Newtonsoft (NullValueHandling.Ignore).
+    /// </summary>
+    public async Task<RestResponse> UpdateInvoiceLine(InvoiceLineUpdate request, string lineKey, string accessToken)
+    {
+        var requete = new RestRequest($"objects/accounts-receivable/invoice-line/{lineKey}", Method.Patch);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        var json = JsonConvert.SerializeObject(request, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+        requete.AddStringBody(json, DataFormat.Json);
+        return await _client.ExecuteAsync(requete);
+    }
+
+    /// <summary>
+    /// Met à jour une ligne de bill via PATCH /objects/accounts-payable/bill-line/{key}. Body sérialisé avec Newtonsoft (NullValueHandling.Ignore).
     /// </summary>
     public async Task<RestResponse> UpdateBillLine(BillLineUpdate request, string lineKey, string accessToken)
     {

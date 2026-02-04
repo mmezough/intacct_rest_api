@@ -1,15 +1,15 @@
 using Newtonsoft.Json;
 
-namespace intacct_rest_api.Models.BillLineUpdate;
+namespace intacct_rest_api.Models.InvoiceLineUpdate;
 
 /// <summary>
-/// Corps minimal pour modifier une ligne de bill (PATCH /objects/accounts-payable/bill-line/{key}).
-/// Seuls les champs renseignés sont envoyés ; les null sont ignorés à la sérialisation.
+/// Corps minimal pour modifier une ligne de facture (PATCH /objects/accounts-receivable/invoice-line/{key}).
+/// Seuls les champs renseignés sont envoyés ; les null sont ignorés. Envoi via Newtonsoft pour éviter glAccount/dimensions en tableau.
 /// </summary>
-public class BillLineUpdate
+public class InvoiceLineUpdate
 {
     [JsonProperty("glAccount", NullValueHandling = NullValueHandling.Ignore)]
-    public GlAccountRef? GlAccount { get; set; }
+    public InvoiceLineGlAccountRef? GlAccount { get; set; }
 
     [JsonProperty("txnAmount", NullValueHandling = NullValueHandling.Ignore)]
     public string? TxnAmount { get; set; }
@@ -18,34 +18,34 @@ public class BillLineUpdate
     public string? Memo { get; set; }
 
     [JsonProperty("dimensions", NullValueHandling = NullValueHandling.Ignore)]
-    public BillLineDimensions? Dimensions { get; set; }
+    public InvoiceLineDimensions? Dimensions { get; set; }
 }
 
 /// <summary>
 /// Référence compte général (un seul identifiant : id).
 /// </summary>
-public class GlAccountRef
+public class InvoiceLineGlAccountRef
 {
     [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
     public string? Id { get; set; }
 }
 
 /// <summary>
-/// Dimensions de la ligne : 2 dimensions pour faciliter la compréhension (department, location).
+/// Dimensions de la ligne : 2 dimensions (location, customer).
 /// </summary>
-public class BillLineDimensions
+public class InvoiceLineDimensions
 {
-    [JsonProperty("department", NullValueHandling = NullValueHandling.Ignore)]
-    public KeyIdRef? Department { get; set; }
-
     [JsonProperty("location", NullValueHandling = NullValueHandling.Ignore)]
-    public KeyIdRef? Location { get; set; }
+    public InvoiceLineKeyIdRef? Location { get; set; }
+
+    [JsonProperty("customer", NullValueHandling = NullValueHandling.Ignore)]
+    public InvoiceLineKeyIdRef? Customer { get; set; }
 }
 
 /// <summary>
 /// Référence dimension (un seul identifiant : id).
 /// </summary>
-public class KeyIdRef
+public class InvoiceLineKeyIdRef
 {
     [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
     public string? Id { get; set; }
