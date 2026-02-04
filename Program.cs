@@ -243,19 +243,19 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
     // POST facture : on assigne explicitement .Id (Customer.Id, GlAccount.Id, Dimensions.Customer.Id, Dimensions.Location.Id).
     var createRequest = new CreateInvoice
     {
-        Customer = { Id = "CL0170" },
-        InvoiceDate = "2025-12-06",
-        DueDate = "2025-12-31",
-        Lines =
+        customer = { id = "CL0170" },
+        invoiceDate = "2025-12-06",
+        dueDate = "2025-12-31",
+        lines =
         [
             new Line
             {
-                TxnAmount = "100",
-                GlAccount = { Id = "701000" },
-                Dimensions =
+                txnAmount = "100",
+                glAccount = { id = "701000" },
+                dimensions =
                 {
-                    Customer = new IdRef { Id = "CL0170" },
-                    Location = new IdRef { Id = "DEMO_1" }
+                    customer = new IdRef { id = "CL0170" },
+                    location = new IdRef { id = "DEMO_1" }
                 }
             }
         ]

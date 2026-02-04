@@ -8,58 +8,31 @@ namespace intacct_rest_api.Models.Invoice;
 /// </summary>
 public class CreateInvoice
 {
-    /// <summary>Client : objet { "id": "..." }. Assigner : Customer.Id = "CL0170".</summary>
-    [JsonPropertyName("customer")]
-    public IdRef Customer { get; set; } = new();
-
-    [JsonPropertyName("invoiceDate")]
-    public string InvoiceDate { get; set; } = string.Empty;
-
-    [JsonPropertyName("dueDate")]
-    public string DueDate { get; set; } = string.Empty;
-
-    [JsonPropertyName("lines")]
-    public List<Line> Lines { get; set; } = new();
+    public IdRef customer { get; set; } = new();
+    public string invoiceDate { get; set; } = string.Empty;
+    public string dueDate { get; set; } = string.Empty;
+    public List<Line> lines { get; set; } = new();
 }
 
-/// <summary>Référence par id : sérialise en { "id": "..." }. Réutilisable (invoice, bill, etc.).</summary>
 public class IdRef
 {
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
+    public string id { get; set; } = string.Empty;
 }
 
-/// <summary>Ligne de facture minimale : montant, glAccount (objet .Id), dimensions (objets .Id).</summary>
 public class Line
 {
-    [JsonPropertyName("txnAmount")]
-    public string TxnAmount { get; set; } = string.Empty;
-
-    /// <summary>Compte : objet { "id": "..." }. Assigner : GlAccount.Id = "701000".</summary>
-    [JsonPropertyName("glAccount")]
-    public IdRef GlAccount { get; set; } = new();
-
-    [JsonPropertyName("dimensions")]
-    public LineDimensions Dimensions { get; set; } = new();
+    public string txnAmount { get; set; } = string.Empty;
+    public IdRef glAccount { get; set; } = new();
+    public LineDimensions dimensions { get; set; } = new();
 }
-
-/// <summary>
-/// Dimensions de la ligne : customer, location, department = objets { "id": "..." }.
-/// Assigner : Dimensions.Customer.Id = "CL0170", Dimensions.Location.Id = "DEMO_1".
-/// </summary>
 public class LineDimensions
 {
-    [JsonPropertyName("customer")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IdRef? Customer { get; set; }
-
-    /// <summary>Dimension lieu (optionnel).</summary>
-    [JsonPropertyName("location")]
+    public IdRef? customer { get; set; }
+    
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IdRef? Location { get; set; }
-
-    /// <summary>Dimension département (optionnel).</summary>
-    [JsonPropertyName("department")]
+    public IdRef? location { get; set; }
+    
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IdRef? Department { get; set; }
+    public IdRef? department { get; set; }
 }
