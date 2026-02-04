@@ -254,7 +254,7 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
                 GlAccount = { Id = "701000" },
                 Dimensions =
                 {
-                    Customer = { Id = "CL0170" },
+                    Customer = new IdRef { Id = "CL0170" },
                     Location = new IdRef { Id = "DEMO_1" }
                 }
             }

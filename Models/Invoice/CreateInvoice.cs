@@ -50,7 +50,8 @@ public class Line
 public class LineDimensions
 {
     [JsonPropertyName("customer")]
-    public IdRef Customer { get; set; } = new();
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IdRef? Customer { get; set; }
 
     /// <summary>Dimension lieu (optionnel).</summary>
     [JsonPropertyName("location")]
