@@ -116,138 +116,46 @@ static async Task RunQueryAndExportAsync(IntacctService intacctService, Token to
     var reponseQuery = await intacctService.Query(queryRequest, token.AccessToken);
     Console.WriteLine("\nRequête - Succès : " + reponseQuery.IsSuccessful);
 
-    // ========== 4. Désérialiser la réponse Query ==========
-    if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content))
-    {
-        var queryResponse = JsonConvert.DeserializeObject<QueryResponse>(reponseQuery.Content);
-        if (queryResponse != null)
-        {
-            Console.WriteLine("Résultats : " + queryResponse.Result.Count + " enregistrement(s)");
-            Console.WriteLine("Meta - TotalCount : " + queryResponse.Meta.TotalCount + ", Start : " + queryResponse.Meta.Start + ", PageSize : " + queryResponse.Meta.PageSize);
-            if (queryResponse.Result.Count > 0)
-            {
-                var premier = queryResponse.Result[0];
-                Console.WriteLine("Premier enregistrement - clés : " + string.Join(", ", premier.Keys));
-                Console.WriteLine("  billNumber : " + premier.GetValueOrDefault("billNumber") + ", vendor : " + premier.GetValueOrDefault("vendor") + ", totalTxnAmount : " + premier.GetValueOrDefault("totalTxnAmount"));
-            }
-        }
-    }
+    // Désérialiser + afficher
+    var queryResponse = JsonConvert.DeserializeObject<QueryResponse>(reponseQuery.Content!);
+    Console.WriteLine("Résultats : " + queryResponse!.Result.Count);
+    if (queryResponse.Result.Count > 0)
+        Console.WriteLine("Premier : " + string.Join(", ", queryResponse.Result[0].Select(kv => kv.Key + "=" + kv.Value)));
 
-    // ========== 5. Exportation ==========
+    // Export
     var fileType = ExportFileType.Pdf;
     var reponseExport = await intacctService.Export(queryRequest, fileType, token.AccessToken);
-
-    if (reponseExport.IsSuccessful && reponseExport.RawBytes?.Length > 0)
-    {
-        var nomFichier = $"{queryRequest.Object.Replace("/", "-")}-export-{DateTime.Now:ddMMyyyy-HHmmss}.{fileType.ToString().ToLowerInvariant()}";
-        var cheminComplet = Path.Combine("C:\\temp", nomFichier);
-        File.WriteAllBytes(cheminComplet, reponseExport.RawBytes);
-        Console.WriteLine("\nFichier enregistré : " + cheminComplet);
-    }
+    var nomFichier = $"{queryRequest.Object.Replace("/", "-")}-export-{DateTime.Now:ddMMyyyy-HHmmss}.pdf";
+    File.WriteAllBytes(Path.Combine("C:\\temp", nomFichier), reponseExport.RawBytes!);
+    Console.WriteLine("Fichier : C:\\temp\\" + nomFichier);
 }
 
 static async Task RunGetInvoicesAsync(IntacctService intacctService, Token token)
 {
-    // ========== 6. GET factures (liste) ==========
-    var reponseInvoices = await intacctService.GetInvoices(token.AccessToken);
-    Console.WriteLine("\nGET invoices (liste) - Succès : " + reponseInvoices.IsSuccessful);
-
-    if (reponseInvoices.IsSuccessful && !string.IsNullOrWhiteSpace(reponseInvoices.Content))
-    {
-        var invoiceList = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponseInvoices.Content);
-        if (invoiceList != null)
-        {
-            var premiersInvoices = invoiceList.Result.Take(3).ToList();
-            foreach (var inv in premiersInvoices)
-            {
-                Console.WriteLine($"  Invoice key={inv.Key}, id={inv.Id}, href={inv.Href}");
-            }
-        }
-    }
+    var reponse = await intacctService.GetInvoices(token.AccessToken);
+    var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponse.Content!);
+    foreach (var inv in list!.Result.Take(3))
+        Console.WriteLine($"key={inv.Key}, id={inv.Id}");
 }
 
 static async Task RunGetInvoiceDetailAsync(IntacctService intacctService, Token token)
 {
-    // Pour la démo, on demande la key à l'utilisateur.
-    Console.Write("\nSaisissez la key d'une facture (ou laissez vide pour annuler) : ");
-    var key = Console.ReadLine();
-    if (string.IsNullOrWhiteSpace(key))
-    {
-        Console.WriteLine("Aucune key saisie, scénario annulé.");
-        return;
-    }
-
-    Console.WriteLine($"\nRécupération du détail de la facture avec key={key} ...");
-
-    var reponseInvoice = await intacctService.GetInvoiceByKey(key, token.AccessToken);
-    Console.WriteLine("GET invoice (détail) - Succès : " + reponseInvoice.IsSuccessful);
-
-    if (reponseInvoice.IsSuccessful && !string.IsNullOrWhiteSpace(reponseInvoice.Content))
-    {
-        var invoiceDetail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponseInvoice.Content);
-        if (invoiceDetail?.Invoice != null)
-        {
-            var h = invoiceDetail.Invoice;
-            Console.WriteLine($"\nFacture {h.InvoiceNumber} pour le client {h.Customer.Name}");
-            Console.WriteLine($"  Date facture : {h.InvoiceDate}, Date d'échéance : {h.DueDate}");
-            Console.WriteLine($"  Montant total (base) : {h.TotalBaseAmount} {h.Currency.BaseCurrency}, Montant total (txn) : {h.TotalTxnAmount} {h.Currency.TxnCurrency}");
-
-            if (h.Lines.Count > 0)
-            {
-                var l = h.Lines[0];
-                Console.WriteLine("\nPremière ligne :");
-                Console.WriteLine($"  Compte : {l.GlAccount.Id} - {l.GlAccount.Name}");
-                Console.WriteLine($"  Montant (base) : {l.BaseAmount}, Montant (txn) : {l.TxnAmount}");
-                Console.WriteLine($"  Lieu : {l.Dimensions.Location.Id} - {l.Dimensions.Location.Name}");
-            }
-        }
-    }
+    var key = "11"; // key facture démo
+    var reponse = await intacctService.GetInvoiceByKey(key, token.AccessToken);
+    var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponse.Content!);
+    var h = detail!.Invoice;
+    Console.WriteLine($"Facture {h.InvoiceNumber}, client {h.Customer.Name}, total {h.TotalTxnAmount}");
+    var l = h.Lines[0];
+    Console.WriteLine($"Ligne 1 : {l.GlAccount.Id}, {l.TxnAmount}, lieu {l.Dimensions.Location.Id}");
 }
 
 static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, Token token)
 {
-    // Variante utilisée pour le scénario "5 - Tous les scénarios" :
-    // on récupère d'abord la liste puis on prend la première key.
-    var reponseInvoices = await intacctService.GetInvoices(token.AccessToken);
-    if (!reponseInvoices.IsSuccessful || string.IsNullOrWhiteSpace(reponseInvoices.Content))
-    {
-        Console.WriteLine("\nImpossible de récupérer la liste des factures pour le détail.");
-        return;
-    }
-
-    var invoiceList = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponseInvoices.Content);
-    if (invoiceList == null || invoiceList.Result.Count == 0)
-    {
-        Console.WriteLine("\nAucune facture trouvée pour le détail.");
-        return;
-    }
-
-    var firstKey = invoiceList.Result[0].Key;
-    Console.WriteLine($"\nRécupération du détail de la première facture (key={firstKey}) ...");
-
-    var reponseInvoice = await intacctService.GetInvoiceByKey(firstKey, token.AccessToken);
-    Console.WriteLine("GET invoice (détail) - Succès : " + reponseInvoice.IsSuccessful);
-
-    if (reponseInvoice.IsSuccessful && !string.IsNullOrWhiteSpace(reponseInvoice.Content))
-    {
-        var invoiceDetail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponseInvoice.Content);
-        if (invoiceDetail?.Invoice != null)
-        {
-            var h = invoiceDetail.Invoice;
-            Console.WriteLine($"\nFacture {h.InvoiceNumber} pour le client {h.Customer.Name}");
-            Console.WriteLine($"  Date facture : {h.InvoiceDate}, Date d'échéance : {h.DueDate}");
-            Console.WriteLine($"  Montant total (base) : {h.TotalBaseAmount} {h.Currency.BaseCurrency}, Montant total (txn) : {h.TotalTxnAmount} {h.Currency.TxnCurrency}");
-
-            if (h.Lines.Count > 0)
-            {
-                var l = h.Lines[0];
-                Console.WriteLine("\nPremière ligne :");
-                Console.WriteLine($"  Compte : {l.GlAccount.Id} - {l.GlAccount.Name}");
-                Console.WriteLine($"  Montant (base) : {l.BaseAmount}, Montant (txn) : {l.TxnAmount}");
-                Console.WriteLine($"  Lieu : {l.Dimensions.Location.Id} - {l.Dimensions.Location.Name}");
-            }
-        }
-    }
+    var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>((await intacctService.GetInvoices(token.AccessToken)).Content!);
+    var key = list!.Result[0].Key;
+    var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>((await intacctService.GetInvoiceByKey(key, token.AccessToken)).Content!);
+    var h = detail!.Invoice;
+    Console.WriteLine($"Facture {h.InvoiceNumber}, total {h.TotalTxnAmount}; ligne 1 key={h.Lines[0].Key}");
 }
 
 static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
@@ -276,11 +184,7 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
     Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(createRequest, Formatting.Indented));
 
     var reponse = await intacctService.CreateInvoice(createRequest, token.AccessToken);
-    Console.WriteLine("\nPOST invoice - Succès : " + reponse.IsSuccessful);
-    if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
-        Console.WriteLine("Réponse : " + reponse.Content);
-    if (reponse.Headers?.FirstOrDefault(h => h.Name?.Equals("Location", StringComparison.OrdinalIgnoreCase) == true)?.Value is { } location)
-        Console.WriteLine("Location : " + location);
+    Console.WriteLine("POST invoice - Succès : " + reponse.IsSuccessful);
 }
 
 static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token token)
@@ -297,63 +201,14 @@ static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token tok
     Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
 
     var reponse = await intacctService.UpdateInvoice(updateRequest, key, token.AccessToken);
-    Console.WriteLine("\nPATCH invoice - Succès : " + reponse.IsSuccessful);
-    if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
-        Console.WriteLine("Réponse : " + reponse.Content);
-    if (reponse.Headers?.FirstOrDefault(h => h.Name?.Equals("Location", StringComparison.OrdinalIgnoreCase) == true)?.Value is { } location)
-        Console.WriteLine("Location : " + location);
+    Console.WriteLine("PATCH invoice - Succès : " + reponse.IsSuccessful);
 }
 
 static async Task RunInvoiceLineUpdateAsync(IntacctService intacctService, Token token)
 {
-    // Récupérer une clé de ligne : liste factures -> détail première facture -> première ligne
-    string? lineKey = null;
-    var reponseList = await intacctService.GetInvoices(token.AccessToken);
-    if (reponseList.IsSuccessful && !string.IsNullOrWhiteSpace(reponseList.Content))
-    {
-        var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponseList.Content);
-        if (list?.Result.Count > 0)
-        {
-            var invoiceKey = list.Result[0].Key;
-            var reponseDetail = await intacctService.GetInvoiceByKey(invoiceKey, token.AccessToken);
-            if (reponseDetail.IsSuccessful && !string.IsNullOrWhiteSpace(reponseDetail.Content))
-            {
-                var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponseDetail.Content);
-                if (detail?.Invoice.Lines.Count > 0)
-                    lineKey = detail.Invoice.Lines[0].Key;
-            }
-        }
-    }
-
-    if (string.IsNullOrWhiteSpace(lineKey))
-    {
-        Console.Write("\nSaisissez la key d'une ligne de facture (invoice line key) : ");
-        lineKey = Console.ReadLine();
-    }
-    else
-    {
-        Console.WriteLine("\nUtilisation de la première ligne de la première facture (key = " + lineKey + ").");
-    }
-
-    if (string.IsNullOrWhiteSpace(lineKey))
-    {
-        Console.WriteLine("Aucune key de ligne fournie, scénario PATCH ligne annulé.");
-        return;
-    }
-
-    // PATCH ligne : memo et/ou txnAmount (très demandés)
-    var updateRequest = new InvoiceLineUpdate
-    {
-        Memo = "Ligne modifiée par démo (atelier)",
-        TxnAmount = "150.00",
-    };
-
-    Console.WriteLine("Json => \n" + JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
-
+    var lineKey = "11"; // key ligne facture démo
+    var updateRequest = new InvoiceLineUpdate { Memo = "Démo atelier", TxnAmount = "150.00" };
+    Console.WriteLine("Json => " + JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
     var reponse = await intacctService.UpdateInvoiceLine(updateRequest, lineKey, token.AccessToken);
-    Console.WriteLine("\nPATCH invoice-line - Succès : " + reponse.IsSuccessful);
-    if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
-        Console.WriteLine("Réponse : " + reponse.Content);
-    if (reponse.Headers?.FirstOrDefault(h => h.Name?.Equals("Location", StringComparison.OrdinalIgnoreCase) == true)?.Value is { } location)
-        Console.WriteLine("Location : " + location);
+    Console.WriteLine("PATCH invoice-line - Succès : " + reponse.IsSuccessful);
 }
