@@ -1,6 +1,7 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
-using intacct_rest_api.Models.Invoice;
+using intacct_rest_api.Models.InvoiceCreate;
+using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
@@ -37,8 +38,9 @@ Console.WriteLine("1 - Query + Export (bill)");
 Console.WriteLine("2 - GET factures (liste)");
 Console.WriteLine("3 - GET facture (détail)");
 Console.WriteLine("4 - POST facture (création)");
-Console.WriteLine("5 - Tous les scénarios");
-Console.Write("\nVotre choix (1/2/3/4/5) : ");
+Console.WriteLine("5 - PATCH facture (mise à jour)");
+Console.WriteLine("6 - Tous les scénarios");
+Console.Write("\nVotre choix (1/2/3/4/5/6) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -56,10 +58,14 @@ switch (choix)
         await RunInvoiceCreateAsync(intacctService, token);
         break;
     case "5":
+        await RunInvoiceUpdateAsync(intacctService, token);
+        break;
+    case "6":
         await RunQueryAndExportAsync(intacctService, token);
         await RunGetInvoicesAsync(intacctService, token);
         await RunInvoiceDetailAfterListAsync(intacctService, token);
         await RunInvoiceCreateAsync(intacctService, token);
+        await RunInvoiceUpdateAsync(intacctService, token);
         break;
     default:
         Console.WriteLine("\nChoix non reconnu, aucun scénario exécuté.");
@@ -241,7 +247,7 @@ static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, 
 static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
 {
     // POST facture : on assigne explicitement .Id (Customer.Id, GlAccount.Id, Dimensions.Customer.Id, Dimensions.Location.Id).
-    var createRequest = new CreateInvoice
+    var createRequest = new InvoiceCreate
     {
         customer = { id = "CL0170" },
         invoiceDate = "2025-12-06",
@@ -261,7 +267,30 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
         ]
     };
 
+    Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(createRequest, Formatting.Indented));
+
     var reponse = await intacctService.CreateInvoice(createRequest, token.AccessToken);
+    Console.WriteLine("\nPOST invoice - Succès : " + reponse.IsSuccessful);
+    if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
+        Console.WriteLine("Réponse : " + reponse.Content);
+    if (reponse.Headers?.FirstOrDefault(h => h.Name?.Equals("Location", StringComparison.OrdinalIgnoreCase) == true)?.Value is { } location)
+        Console.WriteLine("Location : " + location);
+}
+
+static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token token)
+{
+    // PATH facture avec un key = 11
+    var key = "11";
+    var updateRequest = new InvoiceUpdate
+    {
+        referenceNumber = "PO-UPDATED-99",
+        description = "Modifié par Atelier",
+        dueDate = "2026-01-15",
+    };
+
+    Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
+
+    var reponse = await intacctService.UpdateInvoice(updateRequest, key, token.AccessToken);
     Console.WriteLine("\nPOST invoice - Succès : " + reponse.IsSuccessful);
     if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
         Console.WriteLine("Réponse : " + reponse.Content);

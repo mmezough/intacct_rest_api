@@ -1,6 +1,7 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
-using intacct_rest_api.Models.Invoice;
+using intacct_rest_api.Models.InvoiceCreate;
+using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using RestSharp;
 
@@ -112,9 +113,21 @@ public class IntacctService
     /// Crée une facture via POST /objects/accounts-receivable/invoice.
     /// Corps minimal : customer (objet { id }), invoiceDate, dueDate, lines (txnAmount, glAccount objet, dimensions.customer/location/department objets). En C# on peut écrire .Customer = "CL0170", .Dimensions.Location = "DEMO_1".
     /// </summary>
-    public async Task<RestResponse> CreateInvoice(CreateInvoice request, string accessToken)
+    public async Task<RestResponse> CreateInvoice(InvoiceCreate request, string accessToken)
     {
         var requete = new RestRequest("objects/accounts-receivable/invoice", Method.Post);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        requete.AddJsonBody(request);
+        return await _client.ExecuteAsync(requete);
+    }
+
+    /// <summary>
+    /// Crée une facture via POST /objects/accounts-receivable/invoice.
+    /// Corps minimal : customer (objet { id }), invoiceDate, dueDate, lines (txnAmount, glAccount objet, dimensions.customer/location/department objets). En C# on peut écrire .Customer = "CL0170", .Dimensions.Location = "DEMO_1".
+    /// </summary>
+    public async Task<RestResponse> UpdateInvoice(InvoiceUpdate request, string key, string accessToken)
+    {
+        var requete = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Patch);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
         requete.AddJsonBody(request);
         return await _client.ExecuteAsync(requete);
