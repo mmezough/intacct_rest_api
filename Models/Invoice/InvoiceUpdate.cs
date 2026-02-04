@@ -1,14 +1,19 @@
 using Newtonsoft.Json;
-using System.Text.Json.Serialization;
 
 namespace intacct_rest_api.Models.InvoiceUpdate;
 
 /// <summary>
-/// Corps minimal pour modifier une facture (PATCH /objects/accounts-receivable/invoice/key).
+/// Corps pour modifier une facture (PATCH /objects/accounts-receivable/invoice/{key}).
+/// Seuls les champs renseignés sont envoyés ; les null sont ignorés à la sérialisation.
 /// </summary>
 public class InvoiceUpdate
 {
-    public string referenceNumber { get; set; }
-    public string description { get; set; }
-    public string dueDate { get; set; }
+    [JsonProperty("referenceNumber", NullValueHandling = NullValueHandling.Ignore)]
+    public string? ReferenceNumber { get; set; }
+
+    [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
+    public string? Description { get; set; }
+
+    [JsonProperty("dueDate", NullValueHandling = NullValueHandling.Ignore)]
+    public string? DueDate { get; set; }
 }

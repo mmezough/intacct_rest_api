@@ -1,6 +1,7 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
+using intacct_rest_api.Models.InvoiceLineUpdate;
 using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using RestSharp;
@@ -122,12 +123,24 @@ public class IntacctService
     }
 
     /// <summary>
-    /// Crée une facture via POST /objects/accounts-receivable/invoice.
-    /// Corps minimal : customer (objet { id }), invoiceDate, dueDate, lines (txnAmount, glAccount objet, dimensions.customer/location/department objets). En C# on peut écrire .Customer = "CL0170", .Dimensions.Location = "DEMO_1".
+    /// Met à jour une facture via PATCH /objects/accounts-receivable/invoice/{key}.
+    /// Corps partiel : referenceNumber, description, dueDate (seuls les champs renseignés sont envoyés).
     /// </summary>
     public async Task<RestResponse> UpdateInvoice(InvoiceUpdate request, string key, string accessToken)
     {
         var requete = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Patch);
+        requete.AddHeader("Authorization", "Bearer " + accessToken);
+        requete.AddJsonBody(request);
+        return await _client.ExecuteAsync(requete);
+    }
+
+    /// <summary>
+    /// Met à jour une ligne de facture via PATCH /objects/accounts-receivable/invoice-line/{key}.
+    /// Corps minimal partiel : glAccount, txnAmount, memo, dimensions (location, customer). Key = clé de la ligne.
+    /// </summary>
+    public async Task<RestResponse> UpdateInvoiceLine(InvoiceLineUpdate request, string lineKey, string accessToken)
+    {
+        var requete = new RestRequest($"objects/accounts-receivable/invoice-line/{lineKey}", Method.Patch);
         requete.AddHeader("Authorization", "Bearer " + accessToken);
         requete.AddJsonBody(request);
         return await _client.ExecuteAsync(requete);

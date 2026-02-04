@@ -71,7 +71,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, désérialisation, Export, GET liste/détail factures, POST facture (création), d’une facture, enregistrement du fichier. |
+| **Program.cs** | Point d’entrée : configuration, auth, Query, désérialisation, Export, GET liste/détail factures, POST facture (création), PATCH facture, PATCH ligne de facture, enregistrement du fichier. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
 | **Models/Token.cs** | Modèle du token OAuth (AccessToken, RefreshToken, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
@@ -83,8 +83,10 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/ExportFileType.cs** | Enum des formats d’export : Pdf, Csv, Word, Xml, Xlsx. |
 | **Models/InvoiceReference.cs** | Modèles pour la liste de factures : `InvoiceReference` (key, id, href), `InvoiceReferenceListResponse` (Result uniquement). |
 | **Models/InvoiceDetail.cs** | Modèles pour le détail d’une facture (en-tête + quelques lignes) : `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. |
-| **Models/Invoice/CreateInvoice.cs** | Modèle minimal POST facture : `CreateInvoice`, `IdRef`, `Line`, `LineDimensions` (customer, glAccount, dimensions.* = objets `{ "id": "..." }` ; en C# on assigne `.Customer.Id`, `.Dimensions.Customer.Id`, `.Dimensions.Location.Id`). System.Text.Json, comme Query/Export. |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice. |
+| **Models/Invoice/InvoiceCreate.cs** | Modèle minimal POST facture : `InvoiceCreate`, `IdRef`, `Line`, `LineDimensions` (customer, glAccount, dimensions.* = objets `{ "id": "..." }`). |
+| **Models/Invoice/InvoiceUpdate.cs** | Modèle PATCH facture : `InvoiceUpdate` (referenceNumber, description, dueDate ; propriétés PascalCase + `[JsonProperty]`, null ignorés en sérialisation). |
+| **Models/Invoice/InvoiceLineUpdate.cs** | Modèle minimal PATCH ligne de facture : `InvoiceLineUpdate` (glAccount, txnAmount, memo, dimensions) + `GlAccountRef`, `KeyIdRef`, `InvoiceLineDimensions` (2 dimensions : location, customer). |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine. |
 
 ---
 
@@ -275,16 +277,57 @@ Ce flux permet de comparer visuellement :
 
 ---
 
+## Conventions du projet (patterns)
+
+Pour garder le code cohérent et facile à maintenir :
+
+| Règle | Usage |
+|-------|--------|
+| **Modèles de requête (API)** | Propriétés C# en **PascalCase** ; noms JSON en camelCase via **`[JsonProperty("camelCase")]`** (Newtonsoft). Ex. : `InvoiceUpdate.ReferenceNumber` → `"referenceNumber"` dans le JSON. |
+| **Champs optionnels (PATCH)** | Propriétés **nullable** (`string?`) + **`NullValueHandling = NullValueHandling.Ignore`** pour n’envoyer que les champs renseignés. |
+| **Modèles de réponse** | Même principe : PascalCase + `[JsonProperty]` pour mapper `"ia::result"`, noms API, etc. (voir `InvoiceDetail`, `Token`). |
+| **Namespaces** | Un dossier = un sous-namespace : `Models.InvoiceCreate`, `Models.InvoiceUpdate`, `Models.InvoiceLineUpdate`, `Models.Query`, `Models.Export`. Modèles partagés (réponses liste/détail) dans `Models` sans sous-dossier. |
+| **Service** | Une méthode par opération (Get, Create, Update, Query, Export). Commentaires XML décrivant l’endpoint et le corps attendu. |
+| **Program.cs** | Un scénario = une méthode `RunXxxAsync`. Messages console explicites (ex. « PATCH invoice - Succès » et non « POST » pour une mise à jour). |
+
+---
+
 ## POST facture (création)
 
 Le projet permet de **créer une facture** via **POST** `/objects/accounts-receivable/invoice` avec un **modèle minimal** :
 
-- **En-tête** : `customer` (tableau d’objets `{ "id": "..." }`), `invoiceDate`, `dueDate`.
-- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (tableau), `dimensions` (customer, location, department = tableaux ; l’exemple n’utilise que customer).
+- **En-tête** : `customer` (objet `{ "id": "..." }`), `invoiceDate`, `dueDate`.
+- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (objet), `dimensions` (customer, location ; optionnels avec `NullValueHandling.Ignore`).
 
-Les modèles sont dans **Models/Invoice/CreateInvoice.cs** (`CreateInvoice`, `IdRef`, `Line`, `LineDimensions`). L’API attend des **objets** `{ "id": "..." }` pour customer, glAccount et chaque dimension. `IdRef` réutilisable (invoice, bill). Dimensions supportées : customer, location (optionnel), department (optionnel). Sérialisation **System.Text.Json** (`[JsonPropertyName]`), comme Query et Export.
+Les modèles sont dans **Models/Invoice/InvoiceCreate.cs** (`InvoiceCreate`, `IdRef`, `Line`, `LineDimensions`). L’API attend des **objets** `{ "id": "..." }` pour customer, glAccount et chaque dimension.
 
-**CreateInvoice(request, accessToken)** envoie un POST avec le corps JSON et l'en-tête `Authorization: Bearer <token>`. En démo (option 4 ou 5), on construit un exemple avec client CL0170, dates 2025-12-06 / 2025-12-31, une ligne de 100 avec compte 701000 et dimension client CL0170.
+**CreateInvoice(request, accessToken)** envoie un POST avec le corps JSON et l’en-tête `Authorization: Bearer <token>`. En démo (option 4), on construit un exemple avec client CL0170, dates 2025-12-06 / 2025-12-31, une ligne de 100 avec compte 701000 et dimension client CL0170.
+
+---
+
+## PATCH facture (mise à jour)
+
+Le projet permet de **modifier une facture** via **PATCH** `/objects/accounts-receivable/invoice/{key}` avec un **corps partiel** :
+
+- Champs supportés dans **Models/Invoice/InvoiceUpdate.cs** : `ReferenceNumber`, `Description`, `DueDate`.
+- Seuls les propriétés renseignées (non null) sont sérialisées grâce à `NullValueHandling.Ignore`.
+
+**UpdateInvoice(request, key, accessToken)** envoie un PATCH avec le corps JSON. En démo (option 5), on met à jour la facture de key exemple « 11 » avec un numéro de référence, une description et une nouvelle date d’échéance.
+
+---
+
+## PATCH ligne de facture (invoice-line)
+
+Très demandé : mise à jour d’une **ligne de facture** via **PATCH** `/objects/accounts-receivable/invoice-line/{key}`. La `key` est celle de la **ligne** (invoice line item), pas celle de la facture.
+
+- **Modèle** : **Models/Invoice/InvoiceLineUpdate.cs** (`InvoiceLineUpdate`).
+- **Champs supportés** (minimal + 2 dimensions pour faciliter la compréhension ; tous optionnels) :
+  - **glAccount** : `GlAccountRef` (Key, Id).
+  - **txnAmount** : montant en devise de transaction (string décimal).
+  - **memo** : note ou mémo sur la ligne.
+  - **dimensions** : `InvoiceLineDimensions` avec 2 dimensions — **location** et **customer** (chaque dimension = `KeyIdRef` avec key et/ou id).
+
+**UpdateInvoiceLine(request, lineKey, accessToken)** envoie un PATCH avec le corps JSON. En démo (option 6), le programme récupère automatiquement la première ligne de la première facture, ou demande la key de ligne à l’utilisateur, puis met à jour la ligne (ex. memo + txnAmount).
 
 ---
 

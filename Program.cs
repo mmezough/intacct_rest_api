@@ -1,6 +1,7 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
+using intacct_rest_api.Models.InvoiceLineUpdate;
 using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using Microsoft.Extensions.Configuration;
@@ -39,8 +40,9 @@ Console.WriteLine("2 - GET factures (liste)");
 Console.WriteLine("3 - GET facture (détail)");
 Console.WriteLine("4 - POST facture (création)");
 Console.WriteLine("5 - PATCH facture (mise à jour)");
-Console.WriteLine("6 - Tous les scénarios");
-Console.Write("\nVotre choix (1/2/3/4/5/6) : ");
+Console.WriteLine("6 - PATCH ligne de facture (mise à jour)");
+Console.WriteLine("7 - Tous les scénarios");
+Console.Write("\nVotre choix (1/2/3/4/5/6/7) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -61,11 +63,15 @@ switch (choix)
         await RunInvoiceUpdateAsync(intacctService, token);
         break;
     case "6":
+        await RunInvoiceLineUpdateAsync(intacctService, token);
+        break;
+    case "7":
         await RunQueryAndExportAsync(intacctService, token);
         await RunGetInvoicesAsync(intacctService, token);
         await RunInvoiceDetailAfterListAsync(intacctService, token);
         await RunInvoiceCreateAsync(intacctService, token);
         await RunInvoiceUpdateAsync(intacctService, token);
+        await RunInvoiceLineUpdateAsync(intacctService, token);
         break;
     default:
         Console.WriteLine("\nChoix non reconnu, aucun scénario exécuté.");
@@ -279,19 +285,73 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
 
 static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token token)
 {
-    // PATH facture avec un key = 11
+    // PATCH facture (key exemple = 11)
     var key = "11";
     var updateRequest = new InvoiceUpdate
     {
-        referenceNumber = "PO-UPDATED-99",
-        description = "Modifié par Atelier",
-        dueDate = "2026-01-15",
+        ReferenceNumber = "PO-UPDATED-99",
+        Description = "Modifié par Atelier",
+        DueDate = "2026-01-15",
     };
 
     Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
 
     var reponse = await intacctService.UpdateInvoice(updateRequest, key, token.AccessToken);
-    Console.WriteLine("\nPOST invoice - Succès : " + reponse.IsSuccessful);
+    Console.WriteLine("\nPATCH invoice - Succès : " + reponse.IsSuccessful);
+    if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
+        Console.WriteLine("Réponse : " + reponse.Content);
+    if (reponse.Headers?.FirstOrDefault(h => h.Name?.Equals("Location", StringComparison.OrdinalIgnoreCase) == true)?.Value is { } location)
+        Console.WriteLine("Location : " + location);
+}
+
+static async Task RunInvoiceLineUpdateAsync(IntacctService intacctService, Token token)
+{
+    // Récupérer une clé de ligne : liste factures -> détail première facture -> première ligne
+    string? lineKey = null;
+    var reponseList = await intacctService.GetInvoices(token.AccessToken);
+    if (reponseList.IsSuccessful && !string.IsNullOrWhiteSpace(reponseList.Content))
+    {
+        var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponseList.Content);
+        if (list?.Result.Count > 0)
+        {
+            var invoiceKey = list.Result[0].Key;
+            var reponseDetail = await intacctService.GetInvoiceByKey(invoiceKey, token.AccessToken);
+            if (reponseDetail.IsSuccessful && !string.IsNullOrWhiteSpace(reponseDetail.Content))
+            {
+                var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponseDetail.Content);
+                if (detail?.Invoice.Lines.Count > 0)
+                    lineKey = detail.Invoice.Lines[0].Key;
+            }
+        }
+    }
+
+    if (string.IsNullOrWhiteSpace(lineKey))
+    {
+        Console.Write("\nSaisissez la key d'une ligne de facture (invoice line key) : ");
+        lineKey = Console.ReadLine();
+    }
+    else
+    {
+        Console.WriteLine("\nUtilisation de la première ligne de la première facture (key = " + lineKey + ").");
+    }
+
+    if (string.IsNullOrWhiteSpace(lineKey))
+    {
+        Console.WriteLine("Aucune key de ligne fournie, scénario PATCH ligne annulé.");
+        return;
+    }
+
+    // PATCH ligne : memo et/ou txnAmount (très demandés)
+    var updateRequest = new InvoiceLineUpdate
+    {
+        Memo = "Ligne modifiée par démo (atelier)",
+        TxnAmount = "150.00",
+    };
+
+    Console.WriteLine("Json => \n" + JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
+
+    var reponse = await intacctService.UpdateInvoiceLine(updateRequest, lineKey, token.AccessToken);
+    Console.WriteLine("\nPATCH invoice-line - Succès : " + reponse.IsSuccessful);
     if (!reponse.IsSuccessful && !string.IsNullOrWhiteSpace(reponse.Content))
         Console.WriteLine("Réponse : " + reponse.Content);
     if (reponse.Headers?.FirstOrDefault(h => h.Name?.Equals("Location", StringComparison.OrdinalIgnoreCase) == true)?.Value is { } location)
