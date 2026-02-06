@@ -8,12 +8,8 @@ namespace intacct_rest_api.Models.InvoiceUpdate;
 /// </summary>
 public class InvoiceUpdate
 {
-    [JsonProperty("referenceNumber", NullValueHandling = NullValueHandling.Ignore)]
-    public string? ReferenceNumber { get; set; }
-
-    [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
-    public string? Description { get; set; }
-
-    [JsonProperty("dueDate", NullValueHandling = NullValueHandling.Ignore)]
-    public string? DueDate { get; set; }
+    public string? referenceNumber { get; set; }
+    public string? description { get; set; }
+    public string? dueDate { get; set; }
 }
+

@@ -195,18 +195,16 @@ static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token tok
 
 static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token token)
 {
-    // PATCH facture (key exemple = 11)
     var key = "11";
     var updateRequest = new InvoiceUpdate
     {
-        ReferenceNumber = "PO-UPDATED-99",
-        Description = "Modifié par Atelier",
-        DueDate = "2026-01-15",
+        referenceNumber = "PO-UPDATED-99",
+        description = "Modifié par Atelier",
+        dueDate = "2026-01-15",
     };
 
-    Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
-
     var reponse = await intacctService.UpdateInvoice(updateRequest, key, token.AccessToken);
+    
     Console.WriteLine("PATCH invoice - Succès : " + reponse.IsSuccessful);
 }
 
@@ -224,16 +222,21 @@ static async Task RunBillLineUpdateAsync(IntacctService intacctService, Token to
         }
     };
 
-    Console.WriteLine("Json => " + JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
     var reponse = await intacctService.UpdateBillLine(updateRequest, lineKey, token.AccessToken);
+    
     Console.WriteLine("PATCH bill-line - Succès : " + reponse.IsSuccessful);
 }
 
 static async Task RunInvoiceLineUpdateAsync(IntacctService intacctService, Token token)
 {
     var lineKey = "11"; // key ligne facture démo
-    var updateRequest = new InvoiceLineUpdate { TxnAmount = "150.00", Memo = "Démo invoice line" };
-    Console.WriteLine("Json => " + JsonConvert.SerializeObject(updateRequest, Formatting.Indented));
+    var updateRequest = new InvoiceLineUpdate
+    {
+        txnAmount = "150.00",
+        memo = "Démo invoice line"
+    };
+
     var reponse = await intacctService.UpdateInvoiceLine(updateRequest, lineKey, token.AccessToken);
+    
     Console.WriteLine("PATCH invoice-line - Succès : " + reponse.IsSuccessful);
 }

@@ -25,39 +25,39 @@ public class IntacctService
 
     public async Task<RestResponse> ObtenirToken()
     {
-        var requete = new RestRequest("oauth2/token", Method.Post);
+        var restRequest = new RestRequest("oauth2/token", Method.Post);
 
-        requete.AddParameter("grant_type", "client_credentials");
-        requete.AddParameter("client_id", _idClient);
-        requete.AddParameter("client_secret", _secretClient);
-        requete.AddParameter("username", _utilisateur);
+        restRequest.AddParameter("grant_type", "client_credentials");
+        restRequest.AddParameter("client_id", _idClient);
+        restRequest.AddParameter("client_secret", _secretClient);
+        restRequest.AddParameter("username", _utilisateur);
 
-        var reponse = await _client.ExecuteAsync(requete);
+        var reponse = await _client.ExecuteAsync(restRequest);
         return reponse;
     }
 
     public async Task<RestResponse> RafraichirToken(string refreshToken)
     {
-        var requete = new RestRequest("oauth2/token", Method.Post);
+        var restRequest = new RestRequest("oauth2/token", Method.Post);
 
-        requete.AddParameter("grant_type", "refresh_token");
-        requete.AddParameter("client_id", _idClient);
-        requete.AddParameter("client_secret", _secretClient);
-        requete.AddParameter("refresh_token", refreshToken);
+        restRequest.AddParameter("grant_type", "refresh_token");
+        restRequest.AddParameter("client_id", _idClient);
+        restRequest.AddParameter("client_secret", _secretClient);
+        restRequest.AddParameter("refresh_token", refreshToken);
 
-        var reponse = await _client.ExecuteAsync(requete);
+        var reponse = await _client.ExecuteAsync(restRequest);
         return reponse;
     }
 
     public async Task<bool> RevokerToken(string token)
     {
-        var requete = new RestRequest("oauth2/revoke", Method.Post);
+        var restRequest = new RestRequest("oauth2/revoke", Method.Post);
 
-        requete.AddParameter("client_id", _idClient);
-        requete.AddParameter("client_secret", _secretClient);
-        requete.AddParameter("token", token);
+        restRequest.AddParameter("client_id", _idClient);
+        restRequest.AddParameter("client_secret", _secretClient);
+        restRequest.AddParameter("token", token);
 
-        var reponse = await _client.ExecuteAsync(requete);
+        var reponse = await _client.ExecuteAsync(restRequest);
         return reponse.IsSuccessful;
     }
 
@@ -66,10 +66,10 @@ public class IntacctService
     /// </summary>
     public async Task<RestResponse> Query(QueryRequest request, string accessToken)
     {
-        var requete = new RestRequest("services/core/query", Method.Post);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        requete.AddJsonBody(request);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest("services/core/query", Method.Post);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        restRequest.AddJsonBody(request);
+        return await _client.ExecuteAsync(restRequest);
     }
 
     /// <summary>
@@ -83,10 +83,10 @@ public class IntacctService
             Query = request,
             FileType = fileType.ToString().ToLowerInvariant()
         };
-        var requete = new RestRequest("services/core/export", Method.Post);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        requete.AddJsonBody(body);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest("services/core/export", Method.Post);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        restRequest.AddJsonBody(body);
+        return await _client.ExecuteAsync(restRequest);
     }
 
     /// <summary>
@@ -96,9 +96,9 @@ public class IntacctService
     /// </summary>
     public async Task<RestResponse> GetInvoices(string accessToken)
     {
-        var requete = new RestRequest("objects/accounts-receivable/invoice", Method.Get);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest("objects/accounts-receivable/invoice", Method.Get);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        return await _client.ExecuteAsync(restRequest);
     }
 
     /// <summary>
@@ -107,56 +107,53 @@ public class IntacctService
     /// </summary>
     public async Task<RestResponse> GetInvoiceByKey(string key, string accessToken)
     {
-        var requete = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Get);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Get);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        return await _client.ExecuteAsync(restRequest);
     }
 
     /// <summary>
     /// Crée une facture via POST /objects/accounts-receivable/invoice.
     /// Corps minimal : customer (objet { id }), invoiceDate, dueDate, lines (txnAmount, glAccount objet, dimensions.customer/location/department objets). En C# on peut écrire .Customer = "CL0170", .Dimensions.Location = "DEMO_1".
     /// </summary>
-    public async Task<RestResponse> CreateInvoice(InvoiceCreate request, string accessToken)
+    public async Task<RestResponse> CreateInvoice(InvoiceCreate invoiceCreate, string accessToken)
     {
-        var requete = new RestRequest("objects/accounts-receivable/invoice", Method.Post);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        requete.AddJsonBody(request);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest("objects/accounts-receivable/invoice", Method.Post);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        restRequest.AddJsonBody(invoiceCreate);
+        return await _client.ExecuteAsync(restRequest);
     }
 
     /// <summary>
     /// Met à jour une facture via PATCH /objects/accounts-receivable/invoice/{key}.
     /// Corps partiel : referenceNumber, description, dueDate (seuls les champs renseignés sont envoyés).
     /// </summary>
-    public async Task<RestResponse> UpdateInvoice(InvoiceUpdate request, string key, string accessToken)
+    public async Task<RestResponse> UpdateInvoice(InvoiceUpdate invoiceUpdate, string key, string accessToken)
     {
-        var requete = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Patch);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        requete.AddJsonBody(request);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Patch);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        restRequest.AddJsonBody(invoiceUpdate);
+        return await _client.ExecuteAsync(restRequest);
     }
 
-    /// <summary>
-    /// Met à jour une ligne de facture via PATCH /objects/accounts-receivable/invoice-line/{key}. Body sérialisé avec Newtonsoft (NullValueHandling.Ignore).
-    /// </summary>
-    public async Task<RestResponse> UpdateInvoiceLine(InvoiceLineUpdate request, string lineKey, string accessToken)
+    public async Task<RestResponse> UpdateInvoiceLine(InvoiceLineUpdate invoiceLineUpdate, string lineKey, string accessToken)
     {
-        var requete = new RestRequest($"objects/accounts-receivable/invoice-line/{lineKey}", Method.Patch);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        var json = JsonConvert.SerializeObject(request, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-        requete.AddStringBody(json, DataFormat.Json);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest($"objects/accounts-receivable/invoice-line/{lineKey}", Method.Patch);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        var json = JsonConvert.SerializeObject(invoiceLineUpdate, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+        restRequest.AddStringBody(json, DataFormat.Json);
+        return await _client.ExecuteAsync(restRequest);
     }
 
     /// <summary>
     /// Met à jour une ligne de bill via PATCH /objects/accounts-payable/bill-line/{key}. Body sérialisé avec Newtonsoft (NullValueHandling.Ignore).
     /// </summary>
-    public async Task<RestResponse> UpdateBillLine(BillLineUpdate request, string lineKey, string accessToken)
+    public async Task<RestResponse> UpdateBillLine(BillLineUpdate billLineUpdate, string lineKey, string accessToken)
     {
-        var requete = new RestRequest($"objects/accounts-payable/bill-line/{lineKey}", Method.Patch);
-        requete.AddHeader("Authorization", "Bearer " + accessToken);
-        var json = JsonConvert.SerializeObject(request, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-        requete.AddStringBody(json, DataFormat.Json);
-        return await _client.ExecuteAsync(requete);
+        var restRequest = new RestRequest($"objects/accounts-payable/bill-line/{lineKey}", Method.Patch);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        var json = JsonConvert.SerializeObject(billLineUpdate, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
+        restRequest.AddStringBody(json, DataFormat.Json);
+        return await _client.ExecuteAsync(restRequest);
     }
 }
