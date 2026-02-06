@@ -43,7 +43,8 @@ Console.WriteLine("4 - POST facture (création)");
 Console.WriteLine("5 - PATCH facture (mise à jour)");
 Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
 Console.WriteLine("7 - PATCH ligne de facture (mise à jour)");
-Console.WriteLine("8 - Tous les scénarios");
+Console.WriteLine("8 - DELETE facture");
+Console.WriteLine("9 - Tous les scénarios");
 Console.Write("\nVotre choix (1/2/3/4/5/6/7/8) : ");
 var choix = Console.ReadLine();
 
@@ -71,6 +72,9 @@ switch (choix)
         await RunInvoiceLineUpdateAsync(intacctService, token);
         break;
     case "8":
+        await RunInvoiceDelete(intacctService, token);
+        break;
+    case "9":
         await RunQueryAndExportAsync(intacctService, token);
         await RunGetInvoicesAsync(intacctService, token);
         await RunInvoiceDetailAfterListAsync(intacctService, token);
@@ -204,7 +208,7 @@ static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token tok
     };
 
     var reponse = await intacctService.UpdateInvoice(updateRequest, key, token.AccessToken);
-    
+
     Console.WriteLine("PATCH invoice - Succès : " + reponse.IsSuccessful);
 }
 
@@ -223,7 +227,7 @@ static async Task RunBillLineUpdateAsync(IntacctService intacctService, Token to
     };
 
     var reponse = await intacctService.UpdateBillLine(updateRequest, lineKey, token.AccessToken);
-    
+
     Console.WriteLine("PATCH bill-line - Succès : " + reponse.IsSuccessful);
 }
 
@@ -237,6 +241,15 @@ static async Task RunInvoiceLineUpdateAsync(IntacctService intacctService, Token
     };
 
     var reponse = await intacctService.UpdateInvoiceLine(updateRequest, lineKey, token.AccessToken);
-    
+
     Console.WriteLine("PATCH invoice-line - Succès : " + reponse.IsSuccessful);
+}
+
+static async Task RunInvoiceDelete(IntacctService intacctService, Token token)
+{
+    var key = "11";
+    var reponse = await intacctService.DeleteInvoice(key, token.AccessToken);
+
+    Console.WriteLine("DELETE invoice - Succès : " + reponse.IsSuccessful);
+
 }

@@ -156,4 +156,11 @@ public class IntacctService
         restRequest.AddStringBody(json, DataFormat.Json);
         return await _client.ExecuteAsync(restRequest);
     }
+
+    public Task<RestResponse> DeleteInvoice(string key, string accessToken)
+    {
+        var restRequest = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Delete);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        return _client.ExecuteAsync(restRequest);
+    }
 }
