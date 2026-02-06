@@ -299,6 +299,13 @@ static async Task RunBulkAsync(IntacctService intacctService, Token token)
     if (status == "completed")
     {
         var downloadRes = await intacctService.BulkStatus(jobId, token.AccessToken, download: true);
-        Console.WriteLine("Résultat (download) : " + (downloadRes.IsSuccessful ? downloadRes.Content : downloadRes.Content));
+        var content = downloadRes.IsSuccessful ? downloadRes.Content : downloadRes.Content ?? "";
+        try
+        {
+            var parsed = JsonConvert.DeserializeObject(content);
+            content = JsonConvert.SerializeObject(parsed, Formatting.Indented);
+        }
+        catch { /* garder le contenu brut si pas du JSON */ }
+        Console.WriteLine("Résultat (download) :\n" + content);
     }
 }
