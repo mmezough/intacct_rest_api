@@ -163,4 +163,44 @@ public class IntacctService
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
         return _client.ExecuteAsync(restRequest);
     }
+
+    /// <summary>
+    /// Envoie une requête bulk (multipart: ia::requestBody + fichier JSON). Retourne la réponse avec jobId.
+    /// callbackUrl : optionnel ; si fourni, Intacct appellera cette URL (POST) quand le job sera terminé (realtime).
+    /// </summary>
+    public async Task<RestResponse> BulkCreate(string objectName, string operation, string jobFile, string jsonArrayBody, string accessToken, string? callbackUrl = null)
+    {
+        var requestBody = JsonConvert.SerializeObject(new
+        {
+            objectName,
+            operation,
+            jobFile,
+            fileContentType = "json",
+            callbackURL = callbackUrl
+        });
+
+        var restRequest = new RestRequest("services/bulk/job/create", Method.Post);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        var bodyParam = new RestSharp.GetOrPostParameter("ia::requestBody", requestBody)
+        {
+            ContentType = "application/json"
+        };
+        restRequest.AddParameter(bodyParam);
+        var jsonBytes = System.Text.Encoding.UTF8.GetBytes(jsonArrayBody);
+        restRequest.AddFile(jobFile, jsonBytes, $"{jobFile}.json", "application/json");
+
+        return await _client.ExecuteAsync(restRequest);
+    }
+
+    /// <summary>
+    /// Récupère le statut d'un job bulk (optionnellement avec download=true pour le fichier résultat).
+    /// </summary>
+    public async Task<RestResponse> BulkStatus(string jobId, string accessToken, bool download = false)
+    {
+        var restRequest = new RestRequest("services/bulk/job/status", Method.Get);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        restRequest.AddQueryParameter("jobId", jobId);
+        if (download) restRequest.AddQueryParameter("download", "true");
+        return await _client.ExecuteAsync(restRequest);
+    }
 }

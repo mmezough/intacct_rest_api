@@ -45,7 +45,8 @@ Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
 Console.WriteLine("7 - PATCH ligne de facture (mise à jour)");
 Console.WriteLine("8 - DELETE facture");
 Console.WriteLine("9 - Tous les scénarios");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8) : ");
+Console.WriteLine("10 - Bulk create (vendors) + statut");
+Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -73,6 +74,9 @@ switch (choix)
         break;
     case "8":
         await RunInvoiceDelete(intacctService, token);
+        break;
+    case "10":
+        await RunBulkAsync(intacctService, token);
         break;
     case "9":
         await RunQueryAndExportAsync(intacctService, token);
@@ -251,5 +255,50 @@ static async Task RunInvoiceDelete(IntacctService intacctService, Token token)
     var reponse = await intacctService.DeleteInvoice(key, token.AccessToken);
 
     Console.WriteLine("DELETE invoice - Succès : " + reponse.IsSuccessful);
+}
 
+static async Task RunBulkAsync(IntacctService intacctService, Token token)
+{
+    var objectName = "accounts-payable/vendor";
+    var operation = "create";
+    var jobFile = "file";
+    // Optionnel : URL que Intacct appellera (POST) quand le job est terminé (realtime)
+    var callbackUrl = (string?)null; // ex: "https://your-server.com/bulk/callback"
+    var jsonBody = """
+        [
+            {"id":"vendor1","name":"Corner Library","term":{"key":"8"},"vendorType":{"key":"1"},"accountGroup":{"key":"1"}},
+            {"id":"vendor2","name":"Just Picked","term":{"key":"8"},"vendorType":{"key":"1"},"accountGroup":{"key":"1"}}
+        ]
+        """;
+
+    var createRes = await intacctService.BulkCreate(objectName, operation, jobFile, jsonBody, token.AccessToken, callbackUrl);
+    if (!createRes.IsSuccessful)
+    {
+        Console.WriteLine("Bulk create échec : " + createRes.Content);
+        return;
+    }
+
+    var createData = JsonConvert.DeserializeObject<dynamic>(createRes.Content!);
+    var jobId = (string)createData!["ia::result"].jobId;
+    Console.WriteLine("Bulk envoyé. jobId : " + jobId);
+
+    // Poll statut jusqu'à completed ou failed
+    string status;
+    do
+    {
+        await Task.Delay(2000);
+        var statusRes = await intacctService.BulkStatus(jobId, token.AccessToken, download: false);
+        if (!statusRes.IsSuccessful) { Console.WriteLine("Statut échec : " + statusRes.Content); return; }
+        var statusData = JsonConvert.DeserializeObject<dynamic>(statusRes.Content!);
+        var result = statusData!["ia::result"];
+        status = (string)result.status;
+        var pct = result.percentComplete?.ToString() ?? "0";
+        Console.WriteLine("  status=" + status + ", percentComplete=" + pct);
+    } while (status != "completed" && status != "failed");
+
+    if (status == "completed")
+    {
+        var downloadRes = await intacctService.BulkStatus(jobId, token.AccessToken, download: true);
+        Console.WriteLine("Résultat (download) : " + (downloadRes.IsSuccessful ? downloadRes.Content : downloadRes.Content));
+    }
 }

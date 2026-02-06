@@ -1,6 +1,6 @@
 # Sage Intacct REST API – Cours / Atelier
 
-Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2, **Query** (lecture), **Export** (PDF, CSV, etc.) et quelques exemples de **GET** (liste / détail de factures). Support de cours pour ateliers et onboarding.
+Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2, **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Bulk** (create asynchrone + statut, callback URL optionnel). Support de cours pour ateliers et onboarding.
 
 ---
 
@@ -71,7 +71,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), Tous les scénarios (8). |
+| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Bulk create + statut (10)**. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
 | **Models/Token.cs** | Modèle du token OAuth (AccessToken, RefreshToken, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
@@ -84,10 +84,10 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/InvoiceReference.cs** | Modèles pour la liste de factures : `InvoiceReference` (key, id, href), `InvoiceReferenceListResponse` (Result uniquement). |
 | **Models/InvoiceDetail.cs** | Modèles pour le détail d’une facture (en-tête + quelques lignes) : `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. |
 | **Models/Invoice/InvoiceCreate.cs** | Modèle minimal POST facture : `InvoiceCreate`, `IdRef`, `Line`, `LineDimensions` (customer, glAccount, dimensions.* = objets `{ "id": "..." }`). |
-| **Models/Invoice/InvoiceUpdate.cs** | Modèle PATCH facture : `InvoiceUpdate` (referenceNumber, description, dueDate ; propriétés PascalCase + `[JsonProperty]`, null ignorés en sérialisation). |
+| **Models/Invoice/InvoiceUpdate.cs** | Modèle PATCH facture : `InvoiceUpdate` (referenceNumber, description, dueDate ; camelCase, minimal). |
 | **Models/Invoice/BillLineUpdate.cs** | Modèle minimal PATCH ligne de bill : `BillLineUpdate` (glAccount, txnAmount, memo, dimensions) ; refs avec un seul `id`. Dimensions : department, location. |
-| **Models/Invoice/InvoiceLineUpdate.cs** | Modèle minimal PATCH ligne de facture : `InvoiceLineUpdate` (glAccount, txnAmount, memo, dimensions) ; refs avec un seul `id`. Dimensions : location, customer. |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine. Corps PATCH ligne sérialisés avec Newtonsoft + AddStringBody pour n’envoyer que les champs renseignés. |
+| **Models/Invoice/InvoiceLineUpdate.cs** | Modèle minimal PATCH ligne de facture : `InvoiceLineUpdate` (glAccount, txnAmount, memo, dimensions) ; réutilise `IdRef` de InvoiceCreate. Dimensions : location, customer. |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**. Corps PATCH ligne sérialisés avec Newtonsoft + AddStringBody. |
 
 ---
 
@@ -284,7 +284,7 @@ Pour garder le code cohérent et facile à maintenir :
 
 | Règle | Usage |
 |-------|--------|
-| **Modèles de requête (API)** | Propriétés C# en **PascalCase** ; noms JSON en camelCase via **`[JsonProperty("camelCase")]`** (Newtonsoft). Ex. : `InvoiceUpdate.ReferenceNumber` → `"referenceNumber"` dans le JSON. |
+| **Modèles de requête (API)** | **camelCase** (ex. InvoiceUpdate, InvoiceLineUpdate) pour coller au JSON sans attributs, ou PascalCase + `[JsonProperty]` (ex. BillLineUpdate) si besoin de NullValueHandling. |
 | **Champs optionnels (PATCH)** | Propriétés **nullable** (`string?`) + **`NullValueHandling = NullValueHandling.Ignore`** pour n’envoyer que les champs renseignés. |
 | **Modèles de réponse** | Même principe : PascalCase + `[JsonProperty]` pour mapper `"ia::result"`, noms API, etc. (voir `InvoiceDetail`, `Token`). |
 | **Namespaces** | Un dossier = un sous-namespace : `Models.InvoiceCreate`, `Models.InvoiceUpdate`, `Models.InvoiceLineUpdate`, `Models.BillLineUpdate`, `Models.Query`, `Models.Export`. Modèles partagés (réponses liste/détail) dans `Models` sans sous-dossier. |
@@ -310,8 +310,7 @@ Les modèles sont dans **Models/Invoice/InvoiceCreate.cs** (`InvoiceCreate`, `Id
 
 Le projet permet de **modifier une facture** via **PATCH** `/objects/accounts-receivable/invoice/{key}` avec un **corps partiel** :
 
-- Champs supportés dans **Models/Invoice/InvoiceUpdate.cs** : `ReferenceNumber`, `Description`, `DueDate`.
-- Seuls les propriétés renseignées (non null) sont sérialisées grâce à `NullValueHandling.Ignore`.
+- Champs supportés dans **Models/Invoice/InvoiceUpdate.cs** : `referenceNumber`, `description`, `dueDate` (camelCase, minimal).
 
 **UpdateInvoice(request, key, accessToken)** envoie un PATCH avec le corps JSON. En démo (option 5), on met à jour la facture de key exemple « 11 » avec un numéro de référence, une description et une nouvelle date d’échéance.
 
@@ -338,6 +337,25 @@ Mise à jour d’une **ligne de facture** (comptes clients) via **PATCH** `/obje
 - **Sérialisation** : comme pour bill-line, corps sérialisé avec Newtonsoft + `AddStringBody` pour n’envoyer que les champs renseignés.
 
 **UpdateInvoiceLine(request, lineKey, accessToken)**. Démo : option **7**.
+
+---
+
+## DELETE facture
+
+Suppression d’une facture via **DELETE** `/objects/accounts-receivable/invoice/{key}`.
+
+**DeleteInvoice(key, accessToken)**. Démo : option **8**. (Non inclus dans « Tous les scénarios » car destructif.)
+
+---
+
+## Bulk (create + statut)
+
+Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis de **vérifier le statut** jusqu’à completion.
+
+- **BulkCreate(objectName, operation, jobFile, jsonArrayBody, accessToken, callbackUrl = null)** : POST multipart vers `/services/bulk/job/create` (corps `ia::requestBody` + fichier JSON). Retourne un **jobId**. **callbackUrl** est optionnel : si fourni, Intacct appellera cette URL (POST) quand le job sera terminé (realtime, ex. webhook externe).
+- **BulkStatus(jobId, accessToken, download = false)** : GET `/services/bulk/job/status?jobId=...` ; avec `download=true` une fois le statut `completed`, retourne le fichier résultat (JSON).
+
+En démo (option **10**), **RunBulkAsync** envoie un bulk **create** sur `accounts-payable/vendor` avec un JSON hardcodé (2 fournisseurs), affiche le jobId, puis **poll** le statut toutes les 2 secondes jusqu’à `completed` ou `failed`, et affiche le résultat du download si terminé avec succès. Le callback URL peut être défini dans `Program.cs` (variable `callbackUrl`) pour recevoir la notification en temps réel sur un serveur externe.
 
 ---
 

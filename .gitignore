@@ -6,6 +6,9 @@
 # App settings (secrets)
 appsettings.json
 
+# Cloudflare Worker (local demo, not synced)
+cloudflare-worker/
+
 # User-specific files
 *.rsuser
 *.suo
