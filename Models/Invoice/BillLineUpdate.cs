@@ -1,3 +1,5 @@
+using intacct_rest_api.Models;
+
 namespace intacct_rest_api.Models.BillLineUpdate;
 
 /// <summary>
@@ -6,18 +8,10 @@ namespace intacct_rest_api.Models.BillLineUpdate;
 /// </summary>
 public class BillLineUpdate
 {
-    public GlAccountRef? glAccount { get; set; }
+    public IdRef? glAccount { get; set; }
     public string? txnAmount { get; set; }
     public string? memo { get; set; }
     public BillLineDimensions? dimensions { get; set; }
-}
-
-/// <summary>
-/// Référence compte général (un seul identifiant : id).
-/// </summary>
-public class GlAccountRef
-{
-    public string? id { get; set; }
 }
 
 /// <summary>
@@ -25,14 +19,6 @@ public class GlAccountRef
 /// </summary>
 public class BillLineDimensions
 {
-    public KeyIdRef? department { get; set; }
-    public KeyIdRef? location { get; set; }
-}
-
-/// <summary>
-/// Référence dimension (un seul identifiant : id).
-/// </summary>
-public class KeyIdRef
-{
-    public string? id { get; set; }
+    public IdRef? department { get; set; }
+    public IdRef? location { get; set; }
 }

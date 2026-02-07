@@ -1,4 +1,4 @@
-using intacct_rest_api.Models.InvoiceCreate;
+using intacct_rest_api.Models;
 
 namespace intacct_rest_api.Models.InvoiceLineUpdate;
 

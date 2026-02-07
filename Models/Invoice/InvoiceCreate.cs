@@ -1,8 +1,10 @@
+using intacct_rest_api.Models;
+
 namespace intacct_rest_api.Models.InvoiceCreate;
 
 /// <summary>
 /// Corps minimal pour créer une facture (POST /objects/accounts-receivable/invoice).
-/// customer, glAccount et dimensions.* sont des objets { "id": "..." }. On assigne explicitement .Id (ex. Customer.Id = "CL0170").
+/// customer, glAccount et dimensions.* sont des objets { "id": "..." }. On assigne explicitement .id (ex. customer.id = "CL0170").
 /// </summary>
 public class InvoiceCreate
 {
@@ -10,12 +12,6 @@ public class InvoiceCreate
     public string invoiceDate { get; set; } = string.Empty;
     public string dueDate { get; set; } = string.Empty;
     public List<Line> lines { get; set; } = new();
-}
-
-// Pour avoir la syntaxe "object": { "id": "..." } ex "customer": { "id": "CL0170" }
-public class IdRef
-{
-    public string id { get; set; } = string.Empty;
 }
 
 public class Line
