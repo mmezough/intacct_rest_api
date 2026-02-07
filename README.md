@@ -87,7 +87,10 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/Invoice/InvoiceUpdate.cs** | Modèle PATCH facture : `InvoiceUpdate` (referenceNumber, description, dueDate ; camelCase, minimal). |
 | **Models/Invoice/BillLineUpdate.cs** | Modèle minimal PATCH ligne de bill : `BillLineUpdate` (glAccount, txnAmount, memo, dimensions) ; refs avec un seul `id`. Dimensions : department, location. |
 | **Models/Invoice/InvoiceLineUpdate.cs** | Modèle minimal PATCH ligne de facture : `InvoiceLineUpdate` (glAccount, txnAmount, memo, dimensions) ; réutilise `IdRef` de InvoiceCreate. Dimensions : location, customer. |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**. Tous les corps JSON (Create/Update invoice et lignes) sont sérialisés via un helper commun avec **NullValueHandling.Ignore** puis envoyés en AddStringBody. |
+| **Models/Bulk/BulkCreateRequest.cs** | Corps de la partie `ia::requestBody` pour le bulk create : objectName, operation, jobFile, fileContentType, callbackURL (optionnel). |
+| **Models/Bulk/BulkCreateResponse.cs** | Réponse du bulk create (201) : ia::result avec jobId. |
+| **Models/Bulk/BulkStatusResponse.cs** | Réponse du bulk status (200) : ia::result avec status, percentComplete. |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**. Tous les corps JSON (Create/Update invoice et lignes) sont sérialisés via un helper commun avec **NullValueHandling.Ignore**. **BulkCreate** prend un `BulkCreateRequest` + le contenu JSON du fichier. |
 
 ---
 
@@ -350,12 +353,12 @@ Suppression d’une facture via **DELETE** `/objects/accounts-receivable/invoice
 
 ## Bulk (create + statut)
 
-Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis de **vérifier le statut** jusqu’à completion.
+Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis de **vérifier le statut** jusqu’à completion. Les modèles **Models/Bulk/** décrivent la requête et les réponses de façon typée (production-ready).
 
-- **BulkCreate(objectName, operation, jobFile, jsonArrayBody, accessToken, callbackUrl = null)** : POST multipart vers `/services/bulk/job/create` (corps `ia::requestBody` + fichier JSON). Retourne un **jobId**. **callbackUrl** est optionnel : si fourni, Intacct appellera cette URL (POST) quand le job sera terminé (realtime, ex. webhook externe).
-- **BulkStatus(jobId, accessToken, download = false)** : GET `/services/bulk/job/status?jobId=...` ; avec `download=true` une fois le statut `completed`, retourne le fichier résultat (JSON).
+- **BulkCreate(request, jsonArrayBody, accessToken)** : POST multipart vers `/services/bulk/job/create`. **request** est un `BulkCreateRequest` (objectName, operation, jobFile, fileContentType, callbackURL optionnel) ; **jsonArrayBody** est le contenu du fichier JSON (tableau d'enregistrements). Le corps `ia::requestBody` est sérialisé à partir du modèle. Retourne un **jobId** (désérialiser en `BulkCreateResponse`).
+- **BulkStatus(jobId, accessToken, download = false)** : GET `/services/bulk/job/status?jobId=...` ; avec `download=true` une fois le statut `completed`, retourne le fichier résultat (JSON). Réponse désérialisable en `BulkStatusResponse` (Result.status, Result.percentComplete).
 
-En démo (option **10**), **RunBulkAsync** envoie un bulk **create** sur `accounts-payable/vendor` avec un JSON hardcodé (2 fournisseurs), affiche le jobId, puis **poll** le statut toutes les 2 secondes jusqu’à `completed` ou `failed`, et affiche le résultat du download si terminé avec succès. Le callback URL peut être défini dans `Program.cs` (variable `callbackUrl`) pour recevoir la notification en temps réel sur un serveur externe.
+En démo (option **10**), **RunBulkAsync** construit un `BulkCreateRequest` (vendor create, jobFile `file`), envoie un JSON de 2 fournisseurs (id, name), affiche le jobId via `BulkCreateResponse`, puis **poll** le statut avec `BulkStatusResponse` jusqu’à `completed` ou `failed`, et affiche le résultat du download si terminé avec succès. Le callback URL peut être défini sur `request.callbackURL` pour recevoir la notification en temps réel sur un serveur externe.
 
 ---
 

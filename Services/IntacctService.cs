@@ -1,4 +1,5 @@
 using intacct_rest_api.Models;
+using intacct_rest_api.Models.Bulk;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
 using intacct_rest_api.Models.BillLineUpdate;
@@ -174,18 +175,12 @@ public class IntacctService
 
     /// <summary>
     /// Envoie une requête bulk (multipart: ia::requestBody + fichier JSON). Retourne la réponse avec jobId.
-    /// callbackUrl : optionnel ; si fourni, Intacct appellera cette URL (POST) quand le job sera terminé (realtime).
+    /// request : modèle décrivant objectName, operation, jobFile, fileContentType, callbackURL (optionnel).
+    /// jsonArrayBody : contenu du fichier JSON (tableau d'enregistrements à traiter).
     /// </summary>
-    public async Task<RestResponse> BulkCreate(string objectName, string operation, string jobFile, string jsonArrayBody, string accessToken, string? callbackUrl = null)
+    public async Task<RestResponse> BulkCreate(BulkCreateRequest request, string jsonArrayBody, string accessToken)
     {
-        var requestBody = JsonConvert.SerializeObject(new
-        {
-            objectName,
-            operation,
-            jobFile,
-            fileContentType = "json",
-            callbackURL = callbackUrl
-        });
+        var requestBody = SerializeBody(request);
 
         var restRequest = new RestRequest("services/bulk/job/create", Method.Post);
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
@@ -195,7 +190,7 @@ public class IntacctService
         };
         restRequest.AddParameter(bodyParam);
         var jsonBytes = System.Text.Encoding.UTF8.GetBytes(jsonArrayBody);
-        restRequest.AddFile(jobFile, jsonBytes, $"{jobFile}.json", "application/json");
+        restRequest.AddFile(request.jobFile, jsonBytes, $"{request.jobFile}.json", "application/json");
 
         return await _client.ExecuteAsync(restRequest);
     }
