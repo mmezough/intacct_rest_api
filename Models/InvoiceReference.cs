@@ -10,16 +10,13 @@ namespace intacct_rest_api.Models;
 public class InvoiceReference
 {
     /// <summary>Clé technique interne Intacct (colonne "key").</summary>
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
+    public string key { get; set; } = string.Empty;
 
     /// <summary>Identifiant fonctionnel de la facture (invoiceNumber / id lisible).</summary>
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
+    public string id { get; set; } = string.Empty;
 
     /// <summary>Lien vers la ressource facture (GET single invoice).</summary>
-    [JsonProperty("href")]
-    public string Href { get; set; } = string.Empty;
+    public string href { get; set; } = string.Empty;
 }
 
 /// <summary>

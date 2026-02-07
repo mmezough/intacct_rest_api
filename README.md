@@ -73,9 +73,9 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 |-------------------|------|
 | **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Bulk create + statut (10)**. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
-| **Models/Token.cs** | Modèle du token OAuth (AccessToken, RefreshToken, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. |
+| **Models/Token.cs** | Modèle du token OAuth (access_token, refresh_token, expires_in, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. Noms de propriétés alignés sur le JSON (snake_case). |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
-| **Models/QueryResponse.cs** | Réponse Query : Result (liste de lignes) + Meta (TotalCount, Start, PageSize, Next, Previous). Désérialisation avec Newtonsoft. |
+| **Models/QueryResponse.cs** | Réponse Query : Result (liste de lignes) + Meta (totalCount, start, pageSize, next, previous). Désérialisation avec Newtonsoft. Seuls « ia::result » et « ia::meta » gardent un attribut [JsonProperty]. |
 | **Models/Filter.cs** | Helpers pour construire les filtres (Equal, NotEqual, LessThan, GreaterThan, Between, In, Contains, etc.). Les DateTime/DateOnly sont normalisés en `yyyy-MM-dd`. |
 | **Models/FilterExpression.cs** | Combinaison de filtres par index : Ref(0), Ref(1), And(left, right), Or(left, right), Build(filters, expr) pour obtenir la chaîne `"1 and 2"` et valider les indices. |
 | **Models/FilterParameters.cs** | Paramètres optionnels des filtres : CaseSensitiveComparison, IncludePrivate. |
@@ -87,7 +87,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/Invoice/InvoiceUpdate.cs** | Modèle PATCH facture : `InvoiceUpdate` (referenceNumber, description, dueDate ; camelCase, minimal). |
 | **Models/Invoice/BillLineUpdate.cs** | Modèle minimal PATCH ligne de bill : `BillLineUpdate` (glAccount, txnAmount, memo, dimensions) ; refs avec un seul `id`. Dimensions : department, location. |
 | **Models/Invoice/InvoiceLineUpdate.cs** | Modèle minimal PATCH ligne de facture : `InvoiceLineUpdate` (glAccount, txnAmount, memo, dimensions) ; réutilise `IdRef` de InvoiceCreate. Dimensions : location, customer. |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**. Corps PATCH ligne sérialisés avec Newtonsoft + AddStringBody. |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**. Tous les corps JSON (Create/Update invoice et lignes) sont sérialisés via un helper commun avec **NullValueHandling.Ignore** puis envoyés en AddStringBody. |
 
 ---
 
@@ -104,7 +104,7 @@ La configuration est lue depuis `appsettings.json` (IdClient, SecretClient, Util
 ### Étape 2 – Authentification (OAuth2)
 
 - **ObtenirToken()** envoie une requête POST vers `oauth2/token` avec `grant_type=client_credentials`, `client_id`, `client_secret`, `username`.
-- La réponse JSON est désérialisée dans **Token** (Newtonsoft) : on récupère `AccessToken`, `RefreshToken`, `ExpiresIn`, et on calcule `DateExpiration` et `EstExpire`.
+- La réponse JSON est désérialisée dans **Token** (Newtonsoft) : on récupère `access_token`, `refresh_token`, `expires_in`, et on calcule `DateExpiration` et `EstExpire`.
 - Le token est **passé explicitement** à Query et Export (pas stocké dans le service). Cela permet plus tard de gérer plusieurs sociétés/entités en utilisant des tokens différents.
 
 **À retenir :** chaque appel à Query ou Export doit être fait avec un token valide. Rafraîchir le token (RafraichirToken) ou en obtenir un nouveau si nécessaire.
@@ -214,7 +214,7 @@ var queryRequest = new QueryRequest
     Size = 100
 };
 
-var reponseQuery = await intacctService.Query(queryRequest, token.AccessToken);
+var reponseQuery = await intacctService.Query(queryRequest, token.access_token);
 
 if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content))
 {
@@ -223,7 +223,7 @@ if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content
     {
         // queryResponse.Result = lignes, queryResponse.Meta = pagination
         Console.WriteLine("Résultats : " + queryResponse.Result.Count + " enregistrement(s)");
-        Console.WriteLine("Meta - TotalCount : " + queryResponse.Meta.TotalCount + ", Start : " + queryResponse.Meta.Start + ", PageSize : " + queryResponse.Meta.PageSize);
+        Console.WriteLine("Meta - totalCount : " + queryResponse.Meta.totalCount + ", start : " + queryResponse.Meta.start + ", pageSize : " + queryResponse.Meta.pageSize);
     }
 }
 ```
@@ -256,17 +256,17 @@ Ces endpoints renvoient un schéma **spécifique à l’objet** (ici : facture).
   - En-tête : id, key, invoiceNumber, state, dates, montants, client, devise, et un dictionnaire `CustomFields` pour les champs personnalisés (ex. `nsp::REF_ERP`).
   - Lignes : compte de résultat, compte client, montants, lieu (dimension location), client (dimension customer), etc., plus un dictionnaire `CustomFields` pour les champs personnalisés de ligne.
 
-On utilise **Newtonsoft.Json** (`[JsonProperty]`, `[JsonExtensionData]`) pour mapper exactement les noms de champs retournés par l’API (`"ia::result"`, `"invoiceNumber"`, champs commençant par `"nsp::"`, etc.) et exposer les champs personnalisés dans des dictionnaires clé/valeur.
+On utilise **Newtonsoft.Json** avec des **noms de propriétés C# alignés sur le JSON** (camelCase ou snake_case) pour éviter les attributs ; seuls les clés non valides en C# (ex. `"ia::result"`) gardent `[JsonProperty]`. Les champs personnalisés (ex. `nsp::`) sont exposés via `[JsonExtensionData]`.
 
 ### Exemple de flux dans `Program.cs`
 
 Après la démo Query + Export, le programme :
 
-1. Appelle **GetInvoices(token.AccessToken)** :
+1. Appelle **GetInvoices(token.access_token)** :
    - Désérialise la réponse dans `InvoiceReferenceListResponse` (Result uniquement).
    - Liste les 3 premières factures (key, id, href).
 2. Récupère la **clé** (`key`) de la première facture.
-3. Appelle **GetInvoiceByKey(key, token.AccessToken)** :
+3. Appelle **GetInvoiceByKey(key, token.access_token)** :
    - Désérialise la réponse dans `InvoiceDetailResponse`.
    - Affiche un résumé de la facture : numéro, nom du client, dates, montants, devise.
    - Affiche un extrait de la première ligne : compte comptable, montant, lieu.
@@ -284,9 +284,9 @@ Pour garder le code cohérent et facile à maintenir :
 
 | Règle | Usage |
 |-------|--------|
-| **Modèles de requête (API)** | **camelCase** (ex. InvoiceUpdate, InvoiceLineUpdate) pour coller au JSON sans attributs, ou PascalCase + `[JsonProperty]` (ex. BillLineUpdate) si besoin de NullValueHandling. |
-| **Champs optionnels (PATCH)** | Propriétés **nullable** (`string?`) + **`NullValueHandling = NullValueHandling.Ignore`** pour n’envoyer que les champs renseignés. |
-| **Modèles de réponse** | Même principe : PascalCase + `[JsonProperty]` pour mapper `"ia::result"`, noms API, etc. (voir `InvoiceDetail`, `Token`). |
+| **Modèles de requête (API)** | **camelCase** (ex. InvoiceUpdate, InvoiceLineUpdate, BillLineUpdate) pour coller au JSON sans attributs. |
+| **Champs optionnels (PATCH)** | Propriétés **nullable** (`string?`) ; les null sont **ignorés globalement** à la sérialisation dans `IntacctService` (helper `SerializeBody` avec `NullValueHandling.Ignore`). |
+| **Modèles de réponse** | Noms de propriétés **alignés sur le JSON** (camelCase/snake_case) ; `[JsonProperty]` uniquement pour les clés non valides en C# (ex. `"ia::result"`). Voir `InvoiceDetail`, `Token`, `QueryResponse`. |
 | **Namespaces** | Un dossier = un sous-namespace : `Models.InvoiceCreate`, `Models.InvoiceUpdate`, `Models.InvoiceLineUpdate`, `Models.BillLineUpdate`, `Models.Query`, `Models.Export`. Modèles partagés (réponses liste/détail) dans `Models` sans sous-dossier. |
 | **Service** | Une méthode par opération (Get, Create, Update, Query, Export). Commentaires XML décrivant l’endpoint et le corps attendu. |
 | **Program.cs** | Un scénario = une méthode `RunXxxAsync`. Messages console explicites (ex. « PATCH invoice - Succès » et non « POST » pour une mise à jour). |
@@ -298,7 +298,7 @@ Pour garder le code cohérent et facile à maintenir :
 Le projet permet de **créer une facture** via **POST** `/objects/accounts-receivable/invoice` avec un **modèle minimal** :
 
 - **En-tête** : `customer` (objet `{ "id": "..." }`), `invoiceDate`, `dueDate`.
-- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (objet), `dimensions` (customer, location ; optionnels avec `NullValueHandling.Ignore`).
+- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (objet), `dimensions` (customer, location ; optionnels ; les null sont ignorés à la sérialisation par le service).
 
 Les modèles sont dans **Models/Invoice/InvoiceCreate.cs** (`InvoiceCreate`, `IdRef`, `Line`, `LineDimensions`). L’API attend des **objets** `{ "id": "..." }` pour customer, glAccount et chaque dimension.
 
@@ -322,7 +322,7 @@ Mise à jour d’une **ligne de bill** (comptes fournisseurs) via **PATCH** `/ob
 
 - **Modèle** : **Models/Invoice/BillLineUpdate.cs** (`BillLineUpdate`, `GlAccountRef`, `BillLineDimensions`, `KeyIdRef`). Références avec un seul identifiant : **id**.
 - **Champs** (tous optionnels) : glAccount (objet `{ "id": "..." }`), txnAmount, memo, dimensions (department, location).
-- **Sérialisation** : le corps est sérialisé avec **Newtonsoft** et `NullValueHandling.Ignore`, puis envoyé via `AddStringBody`, pour que seul le JSON des champs renseignés soit envoyé (comme en Postman). RestSharp utilise par défaut System.Text.Json pour `AddJsonBody`, ce qui peut produire un payload différent.
+- **Sérialisation** : comme pour les autres corps JSON du service (Create/Update invoice et lignes), le corps est sérialisé via le helper commun (**Newtonsoft**, `NullValueHandling.Ignore`) puis envoyé en `AddStringBody`, pour n’envoyer que les champs renseignés.
 
 **UpdateBillLine(request, lineKey, accessToken)**. Démo : option **6**.
 
@@ -332,9 +332,9 @@ Mise à jour d’une **ligne de bill** (comptes fournisseurs) via **PATCH** `/ob
 
 Mise à jour d’une **ligne de facture** (comptes clients) via **PATCH** `/objects/accounts-receivable/invoice-line/{key}`. La `key` est celle de la ligne.
 
-- **Modèle** : **Models/Invoice/InvoiceLineUpdate.cs** (`InvoiceLineUpdate`, `InvoiceLineGlAccountRef`, `InvoiceLineDimensions`, `InvoiceLineKeyIdRef`). Références avec un seul identifiant : **id**.
+- **Modèle** : **Models/Invoice/InvoiceLineUpdate.cs** (`InvoiceLineUpdate`, `InvoiceLineDimensions` ; réutilise `IdRef` de InvoiceCreate pour glAccount et dimensions).
 - **Champs** (tous optionnels) : glAccount, txnAmount, memo, dimensions (location, customer).
-- **Sérialisation** : comme pour bill-line, corps sérialisé avec Newtonsoft + `AddStringBody` pour n’envoyer que les champs renseignés.
+- **Sérialisation** : comme pour bill-line, corps sérialisé via le helper du service (Newtonsoft, null ignorés) + `AddStringBody`.
 
 **UpdateInvoiceLine(request, lineKey, accessToken)**. Démo : option **7**.
 

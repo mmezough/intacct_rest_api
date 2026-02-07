@@ -17,54 +17,29 @@ public class InvoiceDetailResponse
 /// </summary>
 public class InvoiceHeader
 {
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
-
-    [JsonProperty("recordType")]
-    public string RecordType { get; set; } = string.Empty;
-
-    [JsonProperty("invoiceNumber")]
-    public string InvoiceNumber { get; set; } = string.Empty;
-
-    [JsonProperty("state")]
-    public string State { get; set; } = string.Empty;
-
-    [JsonProperty("invoiceDate")]
-    public string InvoiceDate { get; set; } = string.Empty;
-
-    [JsonProperty("dueDate")]
-    public string DueDate { get; set; } = string.Empty;
-
-    [JsonProperty("totalBaseAmount")]
-    public string TotalBaseAmount { get; set; } = string.Empty;
-
-    [JsonProperty("totalBaseAmountDue")]
-    public string TotalBaseAmountDue { get; set; } = string.Empty;
-
-    [JsonProperty("totalTxnAmount")]
-    public string TotalTxnAmount { get; set; } = string.Empty;
-
-    [JsonProperty("totalTxnAmountDue")]
-    public string TotalTxnAmountDue { get; set; } = string.Empty;
+    public string id { get; set; } = string.Empty;
+    public string key { get; set; } = string.Empty;
+    public string recordType { get; set; } = string.Empty;
+    public string invoiceNumber { get; set; } = string.Empty;
+    public string state { get; set; } = string.Empty;
+    public string invoiceDate { get; set; } = string.Empty;
+    public string dueDate { get; set; } = string.Empty;
+    public string totalBaseAmount { get; set; } = string.Empty;
+    public string totalBaseAmountDue { get; set; } = string.Empty;
+    public string totalTxnAmount { get; set; } = string.Empty;
+    public string totalTxnAmountDue { get; set; } = string.Empty;
 
     /// <summary>Client associé à la facture.</summary>
-    [JsonProperty("customer")]
-    public InvoiceCustomer Customer { get; set; } = new();
+    public InvoiceCustomer customer { get; set; } = new();
 
     /// <summary>Devise de base et de transaction.</summary>
-    [JsonProperty("currency")]
-    public InvoiceCurrency Currency { get; set; } = new();
+    public InvoiceCurrency currency { get; set; } = new();
 
-    /// <summary>Lignes de facture. On ne garde que quelques champs clés.</summary>
-    [JsonProperty("lines")]
-    public List<InvoiceLine> Lines { get; set; } = new();
+    /// <summary>Lignes de facture.</summary>
+    public List<InvoiceLine> lines { get; set; } = new();
 
     /// <summary>
     /// Champs personnalisés (ex. préfixés par nsp::) et autres propriétés non mappées.
-    /// On peut filtrer par clé commençant par "nsp::" pour récupérer les custom fields.
     /// </summary>
     [JsonExtensionData]
     public IDictionary<string, JToken>? CustomFields { get; set; }
@@ -73,31 +48,21 @@ public class InvoiceHeader
 /// <summary>Informations principales du client sur la facture.</summary>
 public class InvoiceCustomer
 {
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
-
-    [JsonProperty("name")]
-    public string Name { get; set; } = string.Empty;
+    public string id { get; set; } = string.Empty;
+    public string key { get; set; } = string.Empty;
+    public string name { get; set; } = string.Empty;
 
     /// <summary>Montant dû par le client sur cette facture.</summary>
-    [JsonProperty("customerDue")]
-    public string CustomerDue { get; set; } = string.Empty;
+    public string customerDue { get; set; } = string.Empty;
 
-    [JsonProperty("href")]
-    public string Href { get; set; } = string.Empty;
+    public string href { get; set; } = string.Empty;
 }
 
 /// <summary>Devise de base et devise de transaction de la facture.</summary>
 public class InvoiceCurrency
 {
-    [JsonProperty("baseCurrency")]
-    public string BaseCurrency { get; set; } = string.Empty;
-
-    [JsonProperty("txnCurrency")]
-    public string TxnCurrency { get; set; } = string.Empty;
+    public string baseCurrency { get; set; } = string.Empty;
+    public string txnCurrency { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -105,38 +70,21 @@ public class InvoiceCurrency
 /// </summary>
 public class InvoiceLine
 {
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
-
-    [JsonProperty("lineNumber")]
-    public int LineNumber { get; set; }
-
-    [JsonProperty("createdDate")]
-    public string CreatedDate { get; set; } = string.Empty;
-
-    [JsonProperty("baseAmount")]
-    public string BaseAmount { get; set; } = string.Empty;
-
-    [JsonProperty("txnAmount")]
-    public string TxnAmount { get; set; } = string.Empty;
-
-    [JsonProperty("memo")]
-    public string? Memo { get; set; }
+    public string id { get; set; } = string.Empty;
+    public string key { get; set; } = string.Empty;
+    public int lineNumber { get; set; }
+    public string createdDate { get; set; } = string.Empty;
+    public string baseAmount { get; set; } = string.Empty;
+    public string txnAmount { get; set; } = string.Empty;
+    public string? memo { get; set; }
 
     /// <summary>Compte de résultat / de vente.</summary>
-    [JsonProperty("glAccount")]
-    public InvoiceGlAccount GlAccount { get; set; } = new();
+    public InvoiceGlAccount glAccount { get; set; } = new();
 
     /// <summary>Dimensions principales de la ligne (lieu, client).</summary>
-    [JsonProperty("dimensions")]
-    public InvoiceLineDimensions Dimensions { get; set; } = new();
+    public InvoiceLineDimensions dimensions { get; set; } = new();
 
-    /// <summary>
-    /// Champs personnalisés de la ligne (ex. nsp::xxx) et autres propriétés non mappées.
-    /// </summary>
+    /// <summary>Champs personnalisés de la ligne (ex. nsp::xxx).</summary>
     [JsonExtensionData]
     public IDictionary<string, JToken>? CustomFields { get; set; }
 }
@@ -144,49 +92,30 @@ public class InvoiceLine
 /// <summary>Compte général associé à la ligne.</summary>
 public class InvoiceGlAccount
 {
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
-
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonProperty("name")]
-    public string Name { get; set; } = string.Empty;
+    public string key { get; set; } = string.Empty;
+    public string id { get; set; } = string.Empty;
+    public string name { get; set; } = string.Empty;
 }
 
 /// <summary>Dimensions utiles pour le cours : lieu et client.</summary>
 public class InvoiceLineDimensions
 {
-    [JsonProperty("location")]
-    public InvoiceLocationDimension Location { get; set; } = new();
-
-    [JsonProperty("customer")]
-    public InvoiceCustomerDimension Customer { get; set; } = new();
+    public InvoiceLocationDimension location { get; set; } = new();
+    public InvoiceCustomerDimension customer { get; set; } = new();
 }
 
 /// <summary>Dimension lieu.</summary>
 public class InvoiceLocationDimension
 {
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
-
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonProperty("name")]
-    public string Name { get; set; } = string.Empty;
+    public string key { get; set; } = string.Empty;
+    public string id { get; set; } = string.Empty;
+    public string name { get; set; } = string.Empty;
 }
 
-/// <summary>Dimension client sur la ligne (peut différer du client de l'en-tête).</summary>
+/// <summary>Dimension client sur la ligne.</summary>
 public class InvoiceCustomerDimension
 {
-    [JsonProperty("key")]
-    public string Key { get; set; } = string.Empty;
-
-    [JsonProperty("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonProperty("name")]
-    public string Name { get; set; } = string.Empty;
+    public string key { get; set; } = string.Empty;
+    public string id { get; set; } = string.Empty;
+    public string name { get; set; } = string.Empty;
 }
-

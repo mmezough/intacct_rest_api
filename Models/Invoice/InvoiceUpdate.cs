@@ -1,5 +1,3 @@
-using Newtonsoft.Json;
-
 namespace intacct_rest_api.Models.InvoiceUpdate;
 
 /// <summary>

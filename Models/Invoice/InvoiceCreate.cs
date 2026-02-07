@@ -1,6 +1,3 @@
-using Newtonsoft.Json;
-using System.Text.Json.Serialization;
-
 namespace intacct_rest_api.Models.InvoiceCreate;
 
 /// <summary>
@@ -29,9 +26,6 @@ public class Line
 }
 public class LineDimensions
 {
-    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public IdRef? customer { get; set; }
-
-    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public IdRef? location { get; set; }
 }

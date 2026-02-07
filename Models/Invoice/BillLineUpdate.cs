@@ -1,24 +1,15 @@
-using Newtonsoft.Json;
-
 namespace intacct_rest_api.Models.BillLineUpdate;
 
 /// <summary>
 /// Corps minimal pour modifier une ligne de bill (PATCH /objects/accounts-payable/bill-line/{key}).
-/// Seuls les champs renseignés sont envoyés ; les null sont ignorés à la sérialisation.
+/// Seuls les champs renseignés sont envoyés ; les null sont ignorés à la sérialisation (service).
 /// </summary>
 public class BillLineUpdate
 {
-    [JsonProperty("glAccount", NullValueHandling = NullValueHandling.Ignore)]
-    public GlAccountRef? GlAccount { get; set; }
-
-    [JsonProperty("txnAmount", NullValueHandling = NullValueHandling.Ignore)]
-    public string? TxnAmount { get; set; }
-
-    [JsonProperty("memo", NullValueHandling = NullValueHandling.Ignore)]
-    public string? Memo { get; set; }
-
-    [JsonProperty("dimensions", NullValueHandling = NullValueHandling.Ignore)]
-    public BillLineDimensions? Dimensions { get; set; }
+    public GlAccountRef? glAccount { get; set; }
+    public string? txnAmount { get; set; }
+    public string? memo { get; set; }
+    public BillLineDimensions? dimensions { get; set; }
 }
 
 /// <summary>
@@ -26,8 +17,7 @@ public class BillLineUpdate
 /// </summary>
 public class GlAccountRef
 {
-    [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
-    public string? Id { get; set; }
+    public string? id { get; set; }
 }
 
 /// <summary>
@@ -35,11 +25,8 @@ public class GlAccountRef
 /// </summary>
 public class BillLineDimensions
 {
-    [JsonProperty("department", NullValueHandling = NullValueHandling.Ignore)]
-    public KeyIdRef? Department { get; set; }
-
-    [JsonProperty("location", NullValueHandling = NullValueHandling.Ignore)]
-    public KeyIdRef? Location { get; set; }
+    public KeyIdRef? department { get; set; }
+    public KeyIdRef? location { get; set; }
 }
 
 /// <summary>
@@ -47,6 +34,5 @@ public class BillLineDimensions
 /// </summary>
 public class KeyIdRef
 {
-    [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
-    public string? Id { get; set; }
+    public string? id { get; set; }
 }

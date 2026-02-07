@@ -17,18 +17,9 @@ public class QueryResponse
 /// <summary>Métadonnées de la réponse (pagination, total).</summary>
 public class QueryResponseMeta
 {
-    [JsonProperty("totalCount")]
-    public int TotalCount { get; set; }
-
-    [JsonProperty("start")]
-    public int Start { get; set; }
-
-    [JsonProperty("pageSize")]
-    public int PageSize { get; set; }
-
-    [JsonProperty("next")]
-    public string? Next { get; set; }
-
-    [JsonProperty("previous")]
-    public string? Previous { get; set; }
+    public int totalCount { get; set; }
+    public int start { get; set; }
+    public int pageSize { get; set; }
+    public string? next { get; set; }
+    public string? previous { get; set; }
 }

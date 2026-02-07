@@ -10,6 +10,11 @@ using RestSharp;
 
 public class IntacctService
 {
+    private static readonly JsonSerializerSettings JsonBodySettings = new()
+    {
+        NullValueHandling = NullValueHandling.Ignore
+    };
+
     private readonly RestClient _client;
     private readonly string _idClient;
     private readonly string _secretClient;
@@ -120,7 +125,7 @@ public class IntacctService
     {
         var restRequest = new RestRequest("objects/accounts-receivable/invoice", Method.Post);
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        restRequest.AddJsonBody(invoiceCreate);
+        restRequest.AddStringBody(SerializeBody(invoiceCreate), DataFormat.Json);
         return await _client.ExecuteAsync(restRequest);
     }
 
@@ -132,7 +137,7 @@ public class IntacctService
     {
         var restRequest = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Patch);
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        restRequest.AddJsonBody(invoiceUpdate);
+        restRequest.AddStringBody(SerializeBody(invoiceUpdate), DataFormat.Json);
         return await _client.ExecuteAsync(restRequest);
     }
 
@@ -140,21 +145,24 @@ public class IntacctService
     {
         var restRequest = new RestRequest($"objects/accounts-receivable/invoice-line/{lineKey}", Method.Patch);
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        var json = JsonConvert.SerializeObject(invoiceLineUpdate, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-        restRequest.AddStringBody(json, DataFormat.Json);
+        restRequest.AddStringBody(SerializeBody(invoiceLineUpdate), DataFormat.Json);
         return await _client.ExecuteAsync(restRequest);
     }
 
     /// <summary>
-    /// Met à jour une ligne de bill via PATCH /objects/accounts-payable/bill-line/{key}. Body sérialisé avec Newtonsoft (NullValueHandling.Ignore).
+    /// Met à jour une ligne de bill via PATCH /objects/accounts-payable/bill-line/{key}.
     /// </summary>
     public async Task<RestResponse> UpdateBillLine(BillLineUpdate billLineUpdate, string lineKey, string accessToken)
     {
         var restRequest = new RestRequest($"objects/accounts-payable/bill-line/{lineKey}", Method.Patch);
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        var json = JsonConvert.SerializeObject(billLineUpdate, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-        restRequest.AddStringBody(json, DataFormat.Json);
+        restRequest.AddStringBody(SerializeBody(billLineUpdate), DataFormat.Json);
         return await _client.ExecuteAsync(restRequest);
+    }
+
+    private static string SerializeBody(object body)
+    {
+        return JsonConvert.SerializeObject(body, JsonBodySettings);
     }
 
     public Task<RestResponse> DeleteInvoice(string key, string accessToken)
