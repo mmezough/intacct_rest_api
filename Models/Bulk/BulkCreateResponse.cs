@@ -11,7 +11,6 @@ public class BulkCreateResponse
     public BulkCreateResult Result { get; set; } = new();
 }
 
-/// <summary>Contenu de ia::result pour un job bulk créé.</summary>
 public class BulkCreateResult
 {
     public string jobId { get; set; } = string.Empty;

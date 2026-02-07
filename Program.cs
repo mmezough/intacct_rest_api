@@ -272,7 +272,15 @@ static async Task RunBulkAsync(IntacctService intacctService, Token token)
     var jsonBody = """
         [
             {"id":"vendor1","name":"Corner Library"},
-            {"id":"vendor2","name":"Just Picked"}
+            {"id":"vendor2","name":"Just Picked"},
+            {"id":"vendor3","name":"Paper Goods"},
+            {"id":"vendor4","name":"Office Furnishings"},
+            {"id":"vendor5","name":"Gadget Pro"},
+            {"id":"vendor6","name":"Tech Solutions"},
+            {"id":"vendor7","name":"Home Essentials"},
+            {"id":"vendor8","name":"Garden Supplies"},
+            {"id":"vendor9","name":"Auto Parts Co."},
+            {"id":"vendor10","name":"Fashion Hub"}
         ]
         """;
 
