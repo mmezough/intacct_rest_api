@@ -29,6 +29,23 @@ Ces identifiants se configurent dans Sage Intacct (Société > Web Services ou v
 
 ---
 
+## Parcours par leçon (tags Git)
+
+Des **tags Git** permettent de retrouver le code à un point du parcours. Tous pointent vers le même état complet du dépôt ; ils servent de repères pour les leçons.
+
+| Tag | Contenu du cours |
+|-----|------------------|
+| `lesson-1-auth` | Authentification (Client Credentials, token). |
+| `lesson-2-query-export` | Query + Export. |
+| `lesson-3-crud` | GET, POST, PATCH, DELETE (factures, lignes). |
+| `lesson-4-bulk` | Bulk create + statut / download. |
+| `lesson-5-composite` | Composite (plusieurs requêtes en un appel). |
+| `lesson-auth-code-worker` | Flux Authorization Code (Worker Cloudflare, GET vendors). |
+
+Pour utiliser un tag (lecture seule) : `git checkout lesson-2-query-export`. Pour revenir sur la branche principale : `git checkout master`.
+
+---
+
 ## Installation pas à pas
 
 ### 1. Cloner le dépôt
