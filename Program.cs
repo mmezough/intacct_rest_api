@@ -1,9 +1,5 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
-using intacct_rest_api.Models.InvoiceCreate;
-using intacct_rest_api.Models.BillLineUpdate;
-using intacct_rest_api.Models.InvoiceLineUpdate;
-using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
@@ -34,54 +30,18 @@ Console.WriteLine("Est expiré ? : " + token.EstExpire);
 // var reponseRafraichir = await intacctService.RafraichirToken(token.refresh_token);
 // var revokeOk = await intacctService.RevokerToken(token.access_token);
 
-// ========== Menu de démo ==========
+// ========== Menu de démo (Query + Export uniquement) ==========
 Console.WriteLine("\nChoisissez le scénario à exécuter :");
 Console.WriteLine("1 - Query + Export (bill)");
-Console.WriteLine("2 - GET factures (liste)");
-Console.WriteLine("3 - GET facture (détail)");
-Console.WriteLine("4 - POST facture (création)");
-Console.WriteLine("5 - PATCH facture (mise à jour)");
-Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
-Console.WriteLine("7 - PATCH ligne de facture (mise à jour)");
-Console.WriteLine("8 - DELETE facture");
-Console.WriteLine("9 - Tous les scénarios");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9) : ");
+Console.WriteLine("9 - Idem (tous les scénarios de cette leçon)");
+Console.Write("\nVotre choix (1/9) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
 {
     case "1":
-        await RunQueryAndExportAsync(intacctService, token);
-        break;
-    case "2":
-        await RunGetInvoicesAsync(intacctService, token);
-        break;
-    case "3":
-        await RunGetInvoiceDetailAsync(intacctService, token);
-        break;
-    case "4":
-        await RunInvoiceCreateAsync(intacctService, token);
-        break;
-    case "5":
-        await RunInvoiceUpdateAsync(intacctService, token);
-        break;
-    case "6":
-        await RunBillLineUpdateAsync(intacctService, token);
-        break;
-    case "7":
-        await RunInvoiceLineUpdateAsync(intacctService, token);
-        break;
-    case "8":
-        await RunInvoiceDelete(intacctService, token);
-        break;
     case "9":
         await RunQueryAndExportAsync(intacctService, token);
-        await RunGetInvoicesAsync(intacctService, token);
-        await RunInvoiceDetailAfterListAsync(intacctService, token);
-        await RunInvoiceCreateAsync(intacctService, token);
-        await RunInvoiceUpdateAsync(intacctService, token);
-        await RunBillLineUpdateAsync(intacctService, token);
-        await RunInvoiceLineUpdateAsync(intacctService, token);
         break;
     default:
         Console.WriteLine("\nChoix non reconnu, aucun scénario exécuté.");
@@ -91,7 +51,7 @@ switch (choix)
 Console.WriteLine("\nTerminé. Appuyez sur Entrée pour fermer.");
 Console.ReadLine();
 
-// === Méthodes de démo (CRUD uniquement, sans Bulk) ===
+// === Méthodes de démo (Query + Export uniquement) ===
 
 static async Task RunQueryAndExportAsync(IntacctService intacctService, Token token)
 {
@@ -138,117 +98,4 @@ static async Task RunQueryAndExportAsync(IntacctService intacctService, Token to
     var nomFichier = $"{queryRequest.Object.Replace("/", "-")}-export-{DateTime.Now:ddMMyyyy-HHmmss}.pdf";
     File.WriteAllBytes(Path.Combine("C:\\temp", nomFichier), reponseExport.RawBytes!);
     Console.WriteLine("Fichier : C:\\temp\\" + nomFichier);
-}
-
-static async Task RunGetInvoicesAsync(IntacctService intacctService, Token token)
-{
-    var reponse = await intacctService.GetInvoices(token.access_token);
-    var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponse.Content!);
-    foreach (var inv in list!.Result.Take(3))
-        Console.WriteLine($"key={inv.key}, id={inv.id}");
-}
-
-static async Task RunGetInvoiceDetailAsync(IntacctService intacctService, Token token)
-{
-    var key = "11"; // key facture démo
-    var reponse = await intacctService.GetInvoiceByKey(key, token.access_token);
-    var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponse.Content!);
-    var h = detail!.Invoice;
-    Console.WriteLine($"Facture {h.invoiceNumber}, client {h.customer.name}, total {h.totalTxnAmount}");
-    var l = h.lines[0];
-    Console.WriteLine($"Ligne 1 : {l.glAccount.id}, {l.txnAmount}, lieu {l.dimensions.location.id}");
-}
-
-static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, Token token)
-{
-    var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>((await intacctService.GetInvoices(token.access_token)).Content!);
-    var key = list!.Result[0].key;
-    var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>((await intacctService.GetInvoiceByKey(key, token.access_token)).Content!);
-    var h = detail!.Invoice;
-    Console.WriteLine($"Facture {h.invoiceNumber}, total {h.totalTxnAmount}; ligne 1 key={h.lines[0].key}");
-}
-
-static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
-{
-    // POST facture : on assigne explicitement .Id (Customer.Id, GlAccount.Id, Dimensions.Customer.Id, Dimensions.Location.Id).
-    var createRequest = new InvoiceCreate
-    {
-        customer = { id = "CL0170" },
-        invoiceDate = "2025-12-06",
-        dueDate = "2025-12-31",
-        lines =
-        [
-            new Line
-            {
-                txnAmount = "100",
-                glAccount = { id = "701000" },
-                dimensions =
-                {
-                    customer = new IdRef { id = "CL0170" },
-                    location = new IdRef { id = "DEMO_1" }
-                }
-            }
-        ]
-    };
-
-    Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(createRequest, Formatting.Indented));
-
-    var reponse = await intacctService.CreateInvoice(createRequest, token.access_token);
-    Console.WriteLine("POST invoice - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token token)
-{
-    var key = "11";
-    var updateRequest = new InvoiceUpdate
-    {
-        referenceNumber = "PO-UPDATED-99",
-        description = "Modifié par Atelier",
-        dueDate = "2026-01-15",
-    };
-
-    var reponse = await intacctService.UpdateInvoice(updateRequest, key, token.access_token);
-
-    Console.WriteLine("PATCH invoice - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunBillLineUpdateAsync(IntacctService intacctService, Token token)
-{
-    var lineKey = "3"; // key ligne bill démo
-    var updateRequest = new BillLineUpdate
-    {
-        txnAmount = "150.00",
-        memo = "Démo bill line",
-        dimensions = new BillLineDimensions
-        {
-            department = new IdRef { id = "922" },
-            location = new IdRef { id = "DEMO_1" }
-        }
-    };
-
-    var reponse = await intacctService.UpdateBillLine(updateRequest, lineKey, token.access_token);
-
-    Console.WriteLine("PATCH bill-line - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunInvoiceLineUpdateAsync(IntacctService intacctService, Token token)
-{
-    var lineKey = "11"; // key ligne facture démo
-    var updateRequest = new InvoiceLineUpdate
-    {
-        txnAmount = "150.00",
-        memo = "Démo invoice line"
-    };
-
-    var reponse = await intacctService.UpdateInvoiceLine(updateRequest, lineKey, token.access_token);
-
-    Console.WriteLine("PATCH invoice-line - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunInvoiceDelete(IntacctService intacctService, Token token)
-{
-    var key = "11";
-    var reponse = await intacctService.DeleteInvoice(key, token.access_token);
-
-    Console.WriteLine("DELETE invoice - Succès : " + reponse.IsSuccessful);
 }

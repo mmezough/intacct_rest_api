@@ -1,20 +1,11 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Export;
-using intacct_rest_api.Models.InvoiceCreate;
-using intacct_rest_api.Models.BillLineUpdate;
-using intacct_rest_api.Models.InvoiceLineUpdate;
-using intacct_rest_api.Models.InvoiceUpdate;
 using intacct_rest_api.Models.Query;
 using Newtonsoft.Json;
 using RestSharp;
 
 public class IntacctService
 {
-    private static readonly JsonSerializerSettings JsonBodySettings = new()
-    {
-        NullValueHandling = NullValueHandling.Ignore
-    };
-
     private readonly RestClient _client;
     private readonly string _idClient;
     private readonly string _secretClient;
@@ -92,83 +83,5 @@ public class IntacctService
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
         restRequest.AddJsonBody(body);
         return await _client.ExecuteAsync(restRequest);
-    }
-
-    /// <summary>
-    /// Récupère une liste de factures (références légères) via GET /objects/accounts-receivable/invoice.
-    /// Cette opération est surtout utile pour des tests / découvertes ;
-    /// pour la pagination et les filtres, Sage recommande d'utiliser le service Query.
-    /// </summary>
-    public async Task<RestResponse> GetInvoices(string accessToken)
-    {
-        var restRequest = new RestRequest("objects/accounts-receivable/invoice", Method.Get);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        return await _client.ExecuteAsync(restRequest);
-    }
-
-    /// <summary>
-    /// Récupère le détail d'une facture par sa clé via GET /objects/accounts-receivable/invoice/{key}.
-    /// Le schéma de réponse est spécifique à l'objet facture (en-tête + lignes).
-    /// </summary>
-    public async Task<RestResponse> GetInvoiceByKey(string key, string accessToken)
-    {
-        var restRequest = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Get);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        return await _client.ExecuteAsync(restRequest);
-    }
-
-    /// <summary>
-    /// Crée une facture via POST /objects/accounts-receivable/invoice.
-    /// Corps minimal : customer (objet { id }), invoiceDate, dueDate, lines (txnAmount, glAccount objet, dimensions.customer/location/department objets). En C# on peut écrire .Customer = "CL0170", .Dimensions.Location = "DEMO_1".
-    /// </summary>
-    public async Task<RestResponse> CreateInvoice(InvoiceCreate invoiceCreate, string accessToken)
-    {
-        var restRequest = new RestRequest("objects/accounts-receivable/invoice", Method.Post);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        restRequest.AddStringBody(SerializeBody(invoiceCreate), DataFormat.Json);
-        return await _client.ExecuteAsync(restRequest);
-    }
-
-    /// <summary>
-    /// Met à jour une facture via PATCH /objects/accounts-receivable/invoice/{key}.
-    /// Corps partiel : referenceNumber, description, dueDate (seuls les champs renseignés sont envoyés).
-    /// </summary>
-    public async Task<RestResponse> UpdateInvoice(InvoiceUpdate invoiceUpdate, string key, string accessToken)
-    {
-        var restRequest = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Patch);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        restRequest.AddStringBody(SerializeBody(invoiceUpdate), DataFormat.Json);
-        return await _client.ExecuteAsync(restRequest);
-    }
-
-    public async Task<RestResponse> UpdateInvoiceLine(InvoiceLineUpdate invoiceLineUpdate, string lineKey, string accessToken)
-    {
-        var restRequest = new RestRequest($"objects/accounts-receivable/invoice-line/{lineKey}", Method.Patch);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        restRequest.AddStringBody(SerializeBody(invoiceLineUpdate), DataFormat.Json);
-        return await _client.ExecuteAsync(restRequest);
-    }
-
-    /// <summary>
-    /// Met à jour une ligne de bill via PATCH /objects/accounts-payable/bill-line/{key}.
-    /// </summary>
-    public async Task<RestResponse> UpdateBillLine(BillLineUpdate billLineUpdate, string lineKey, string accessToken)
-    {
-        var restRequest = new RestRequest($"objects/accounts-payable/bill-line/{lineKey}", Method.Patch);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        restRequest.AddStringBody(SerializeBody(billLineUpdate), DataFormat.Json);
-        return await _client.ExecuteAsync(restRequest);
-    }
-
-    private static string SerializeBody(object body)
-    {
-        return JsonConvert.SerializeObject(body, JsonBodySettings);
-    }
-
-    public Task<RestResponse> DeleteInvoice(string key, string accessToken)
-    {
-        var restRequest = new RestRequest($"objects/accounts-receivable/invoice/{key}", Method.Delete);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        return _client.ExecuteAsync(restRequest);
     }
 }
