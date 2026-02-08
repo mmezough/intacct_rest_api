@@ -1,5 +1,4 @@
 using intacct_rest_api.Models;
-using intacct_rest_api.Models.Bulk;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
 using intacct_rest_api.Models.BillLineUpdate;
@@ -46,9 +45,7 @@ Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
 Console.WriteLine("7 - PATCH ligne de facture (mise à jour)");
 Console.WriteLine("8 - DELETE facture");
 Console.WriteLine("9 - Tous les scénarios");
-Console.WriteLine("10 - Bulk create (vendors)");
-Console.WriteLine("11 - Bulk get result (statut + download)");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11) : ");
+Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -77,17 +74,6 @@ switch (choix)
     case "8":
         await RunInvoiceDelete(intacctService, token);
         break;
-    case "10":
-        await RunBulkAsync(intacctService, token);
-        break;
-    case "11":
-        Console.Write("JobId (ex. copié après option 10) : ");
-        var jobId = Console.ReadLine()?.Trim();
-        if (!string.IsNullOrEmpty(jobId))
-            await RunBulkGetResultAsync(intacctService, token, jobId);
-        else
-            Console.WriteLine("JobId vide, annulé.");
-        break;
     case "9":
         await RunQueryAndExportAsync(intacctService, token);
         await RunGetInvoicesAsync(intacctService, token);
@@ -105,7 +91,7 @@ switch (choix)
 Console.WriteLine("\nTerminé. Appuyez sur Entrée pour fermer.");
 Console.ReadLine();
 
-// === Méthodes de démo (sans Composite) ===
+// === Méthodes de démo (CRUD uniquement, sans Bulk) ===
 
 static async Task RunQueryAndExportAsync(IntacctService intacctService, Token token)
 {
@@ -265,75 +251,4 @@ static async Task RunInvoiceDelete(IntacctService intacctService, Token token)
     var reponse = await intacctService.DeleteInvoice(key, token.access_token);
 
     Console.WriteLine("DELETE invoice - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunBulkAsync(IntacctService intacctService, Token token)
-{
-    var request = new BulkCreateRequest
-    {
-        objectName = "accounts-payable/vendor",
-        operation = "create",
-        jobFile = "file",
-        fileContentType = "json"
-        // callbackURL = "https://your-server.com/bulk/callback"  // optionnel
-    };
-
-    var jsonBody = """
-        [
-            {"id":"vendor1","name":"Corner Library"},
-            {"id":"vendor2","name":"Just Picked"},
-            {"id":"vendor3","name":"Paper Goods"},
-            {"id":"vendor4","name":"Office Furnishings"},
-            {"id":"vendor5","name":"Gadget Pro"},
-            {"id":"vendor6","name":"Tech Solutions"},
-            {"id":"vendor7","name":"Home Essentials"},
-            {"id":"vendor8","name":"Garden Supplies"},
-            {"id":"vendor9","name":"Auto Parts Co."},
-            {"id":"vendor10","name":"Fashion Hub"}
-        ]
-        """;
-
-    var createRes = await intacctService.BulkCreate(request, jsonBody, token.access_token);
-    if (!createRes.IsSuccessful)
-    {
-        Console.WriteLine("Bulk create échec : " + createRes.Content);
-        return;
-    }
-
-    var createData = JsonConvert.DeserializeObject<BulkCreateResponse>(createRes.Content!);
-    var jobId = createData!.Result.jobId;
-    Console.WriteLine("Bulk envoyé. jobId : " + jobId);
-    Console.WriteLine("Pour vérifier le statut et télécharger le résultat : option 11 avec ce jobId.");
-}
-
-/// <summary>
-/// Démo simple : vérifier le statut d'un job bulk puis télécharger le résultat (option 11).
-/// </summary>
-static async Task RunBulkGetResultAsync(IntacctService intacctService, Token token, string jobId)
-{
-    // 1. Statut
-    var statusRes = await intacctService.BulkStatus(jobId, token.access_token, download: false);
-    if (!statusRes.IsSuccessful)
-    {
-        Console.WriteLine("Bulk status échec : " + statusRes.Content);
-        return;
-    }
-    var statusData = JsonConvert.DeserializeObject<BulkStatusResponse>(statusRes.Content!);
-    Console.WriteLine("Statut : " + statusData!.Result.status + ", percentComplete : " + (statusData.Result.percentComplete?.ToString() ?? "—"));
-
-    // 2. Download
-    var downloadRes = await intacctService.BulkStatus(jobId, token.access_token, download: true);
-    if (!downloadRes.IsSuccessful)
-    {
-        Console.WriteLine("Bulk download échec : " + downloadRes.Content);
-        return;
-    }
-    var content = downloadRes.Content ?? "";
-    try
-    {
-        var parsed = JsonConvert.DeserializeObject(content);
-        content = JsonConvert.SerializeObject(parsed, Formatting.Indented);
-    }
-    catch { /* garder le contenu brut si pas du JSON */ }
-    Console.WriteLine("Résultat (download) :\n" + content);
 }
