@@ -1,5 +1,6 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Bulk;
+using intacct_rest_api.Models.Composite;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
 using intacct_rest_api.Models.BillLineUpdate;
@@ -48,7 +49,8 @@ Console.WriteLine("8 - DELETE facture");
 Console.WriteLine("9 - Tous les scénarios");
 Console.WriteLine("10 - Bulk create (vendors)");
 Console.WriteLine("11 - Bulk get result (statut + download)");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11) : ");
+Console.WriteLine("12 - Composite (plusieurs requêtes en un appel)");
+Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11/12) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -87,6 +89,9 @@ switch (choix)
             await RunBulkGetResultAsync(intacctService, token, jobId);
         else
             Console.WriteLine("JobId vide, annulé.");
+        break;
+    case "12":
+        await RunCompositeAsync(intacctService, token);
         break;
     case "9":
         await RunQueryAndExportAsync(intacctService, token);
@@ -336,4 +341,27 @@ static async Task RunBulkGetResultAsync(IntacctService intacctService, Token tok
     }
     catch { /* garder le contenu brut si pas du JSON */ }
     Console.WriteLine("Résultat (download) :\n" + content);
+}
+
+/// <summary>
+/// Démo composite : deux GET en un seul appel (liste factures + détail d'une facture).
+/// </summary>
+static async Task RunCompositeAsync(IntacctService intacctService, Token token)
+{
+    var subRequests = new List<CompositeSubRequest>
+    {
+        new() { method = "GET", path = "/objects/accounts-receivable/invoice" },
+        new() { method = "GET", path = "/objects/accounts-receivable/invoice/11" }
+    };
+
+    var response = await intacctService.Composite(subRequests, token.access_token);
+    if (!response.IsSuccessful)
+    {
+        Console.WriteLine("Composite échec : " + response.Content);
+        return;
+    }
+
+    var composite = JsonConvert.DeserializeObject<CompositeResponse>(response.Content!);
+    Console.WriteLine("Composite réussi. totalSuccess=" + composite!.Meta.totalSuccess + ", totalError=" + composite.Meta.totalError);
+    Console.WriteLine("Réponse (ia::result) : " + (response.Content?.Length ?? 0) + " caractères.");
 }

@@ -1,6 +1,6 @@
 # Sage Intacct REST API – Cours / Atelier
 
-Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2, **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Bulk** (create asynchrone + statut, callback URL optionnel). Support de cours pour ateliers et onboarding.
+Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2, **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Bulk** (create asynchrone + statut, callback URL optionnel), **Composite** (plusieurs requêtes en un appel). Support de cours pour ateliers et onboarding.
 
 ---
 
@@ -71,7 +71,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Bulk create (10)**, **Bulk get result – statut + download (11)**. |
+| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Bulk create (10)**, **Bulk get result – statut + download (11)**, **Composite (12)**. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
 | **Models/Token.cs** | Modèle du token OAuth (access_token, refresh_token, expires_in, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. Noms de propriétés alignés sur le JSON (snake_case). |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
@@ -90,7 +90,9 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/Bulk/BulkCreateRequest.cs** | Corps de la partie `ia::requestBody` pour le bulk create : objectName, operation, jobFile, fileContentType, callbackURL (optionnel). |
 | **Models/Bulk/BulkCreateResponse.cs** | Réponse du bulk create (201) : ia::result avec jobId. |
 | **Models/Bulk/BulkStatusResponse.cs** | Réponse du bulk status (200) : ia::result avec status, percentComplete. |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**. Tous les corps JSON (Create/Update invoice et lignes) sont sérialisés via un helper commun avec **NullValueHandling.Ignore**. **BulkCreate** prend un `BulkCreateRequest` + le contenu JSON du fichier. |
+| **Models/Composite/CompositeSubRequest.cs** | Une sous-requête composite : method, path, body (optionnel), resultReference (optionnel), headers (optionnel). |
+| **Models/Composite/CompositeResponse.cs** | Réponse de POST /services/core/composite : ia::result (tableau), ia::meta (totalCount, totalSuccess, totalError). |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**, **Composite**. Tous les corps JSON sont sérialisés via un helper commun (NullValueHandling.Ignore). **Composite** envoie une liste de `CompositeSubRequest` vers `/services/core/composite`. |
 
 ---
 
@@ -360,6 +362,16 @@ Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis 
 
 En démo : **option 10** (**RunBulkAsync**) envoie un bulk create (vendors), affiche le **jobId** et indique d’utiliser l’option 11 pour le résultat. **Option 11** (**RunBulkGetResultAsync**) demande un jobId (ex. copié après l’option 10), appelle **BulkStatus** une fois pour le statut (status, percentComplete) puis avec **download=true** pour afficher le fichier résultat. Code minimal pour une démo claire. Le callback URL peut être défini sur `request.callbackURL` pour recevoir la notification en temps réel sur un serveur externe.
 
+
+---
+
+## Composite (plusieurs requêtes en un appel)
+
+Le service **Composite** permet d’envoyer plusieurs sous-requêtes (GET, POST, PATCH, DELETE) en un seul POST vers `/services/core/composite`. Chaque sous-requête a un **method**, un **path**, et optionnellement **body** (POST/PATCH), **resultReference** (pour réutiliser le résultat dans un path suivant, ex. `@{maRef.1.key}`), **headers** (ex. Idempotency-Key).
+
+- **Composite(subRequests, accessToken)** : POST `/services/core/composite` avec le corps JSON = tableau de `CompositeSubRequest`. Réponse désérialisable en `CompositeResponse` (Result = un élément par sous-requête, Meta = totalCount, totalSuccess, totalError).
+
+En démo (**option 12**), **RunCompositeAsync** envoie deux GET en un appel : liste des factures puis détail de la facture key 11 ; affiche totalSuccess et totalError.
 
 ---
 
