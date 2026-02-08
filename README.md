@@ -71,7 +71,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Bulk create + statut (10)**. |
+| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Bulk create (10)**, **Bulk get result – statut + download (11)**. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
 | **Models/Token.cs** | Modèle du token OAuth (access_token, refresh_token, expires_in, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. Noms de propriétés alignés sur le JSON (snake_case). |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
@@ -358,7 +358,8 @@ Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis 
 - **BulkCreate(request, jsonArrayBody, accessToken)** : POST multipart vers `/services/bulk/job/create`. **request** est un `BulkCreateRequest` (objectName, operation, jobFile, fileContentType, callbackURL optionnel) ; **jsonArrayBody** est le contenu du fichier JSON (tableau d'enregistrements). Le corps `ia::requestBody` est sérialisé à partir du modèle. Retourne un **jobId** (désérialiser en `BulkCreateResponse`).
 - **BulkStatus(jobId, accessToken, download = false)** : GET `/services/bulk/job/status?jobId=...` ; avec `download=true` une fois le statut `completed`, retourne le fichier résultat (JSON). Réponse désérialisable en `BulkStatusResponse` (Result.status, Result.percentComplete).
 
-En démo (option **10**), **RunBulkAsync** construit un `BulkCreateRequest` (vendor create, jobFile `file`), envoie un JSON de 2 fournisseurs (id, name), affiche le jobId via `BulkCreateResponse`, puis **poll** le statut avec `BulkStatusResponse` jusqu’à `completed` ou `failed`, et affiche le résultat du download si terminé avec succès. Le callback URL peut être défini sur `request.callbackURL` pour recevoir la notification en temps réel sur un serveur externe.
+En démo : **option 10** (**RunBulkAsync**) envoie un bulk create (vendors), affiche le **jobId** et indique d’utiliser l’option 11 pour le résultat. **Option 11** (**RunBulkGetResultAsync**) demande un jobId (ex. copié après l’option 10), appelle **BulkStatus** une fois pour le statut (status, percentComplete) puis avec **download=true** pour afficher le fichier résultat. Code minimal pour une démo claire. Le callback URL peut être défini sur `request.callbackURL` pour recevoir la notification en temps réel sur un serveur externe.
+
 
 ---
 
