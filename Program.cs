@@ -1,6 +1,5 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Bulk;
-using intacct_rest_api.Models.Composite;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
 using intacct_rest_api.Models.BillLineUpdate;
@@ -49,8 +48,7 @@ Console.WriteLine("8 - DELETE facture");
 Console.WriteLine("9 - Tous les scénarios");
 Console.WriteLine("10 - Bulk create (vendors)");
 Console.WriteLine("11 - Bulk get result (statut + download)");
-Console.WriteLine("12 - Composite (plusieurs requêtes en un appel)");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11/12) : ");
+Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -90,9 +88,6 @@ switch (choix)
         else
             Console.WriteLine("JobId vide, annulé.");
         break;
-    case "12":
-        await RunCompositeAsync(intacctService, token);
-        break;
     case "9":
         await RunQueryAndExportAsync(intacctService, token);
         await RunGetInvoicesAsync(intacctService, token);
@@ -110,7 +105,7 @@ switch (choix)
 Console.WriteLine("\nTerminé. Appuyez sur Entrée pour fermer.");
 Console.ReadLine();
 
-// === Méthodes de démo ===
+// === Méthodes de démo (sans Composite) ===
 
 static async Task RunQueryAndExportAsync(IntacctService intacctService, Token token)
 {
@@ -341,58 +336,4 @@ static async Task RunBulkGetResultAsync(IntacctService intacctService, Token tok
     }
     catch { /* garder le contenu brut si pas du JSON */ }
     Console.WriteLine("Résultat (download) :\n" + content);
-}
-
-/// <summary>
-/// Démo composite : création de 2 factures en un seul appel (même modèle InvoiceCreate que POST facture).
-/// </summary>
-static async Task RunCompositeAsync(IntacctService intacctService, Token token)
-{
-    var invoice1 = new InvoiceCreate
-    {
-        customer = { id = "CL0170" },
-        invoiceDate = "2025-12-06",
-        dueDate = "2025-12-31",
-        lines =
-        [
-            new Line
-            {
-                txnAmount = "100",
-                glAccount = { id = "701000" },
-                dimensions = { customer = new IdRef { id = "CL0170" }, location = new IdRef { id = "DEMO_1" } }
-            }
-        ]
-    };
-    var invoice2 = new InvoiceCreate
-    {
-        customer = { id = "CL0170" },
-        invoiceDate = "2025-12-07",
-        dueDate = "2026-01-01",
-        lines =
-        [
-            new Line
-            {
-                txnAmount = "200",
-                glAccount = { id = "701000" },
-                dimensions = { customer = new IdRef { id = "CL0170" }, location = new IdRef { id = "DEMO_1" } }
-            }
-        ]
-    };
-
-    var subRequests = new List<CompositeSubRequest>
-    {
-        new() { method = "POST", path = "/objects/accounts-receivable/invoice", body = invoice1 },
-        new() { method = "POST", path = "/objects/accounts-receivable/invoice", body = invoice2 }
-    };
-
-    var response = await intacctService.Composite(subRequests, token.access_token);
-    if (!response.IsSuccessful)
-    {
-        Console.WriteLine("Composite échec : " + response.Content);
-        return;
-    }
-
-    var composite = JsonConvert.DeserializeObject<CompositeResponse>(response.Content!);
-    Console.WriteLine("Composite réussi. totalSuccess=" + composite!.Meta.totalSuccess + ", totalError=" + composite.Meta.totalError);
-    Console.WriteLine("Réponse (ia::result) : " + (response.Content?.Length ?? 0) + " caractères.");
 }
