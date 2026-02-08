@@ -31,18 +31,18 @@ Ces identifiants se configurent dans Sage Intacct (Société > Web Services ou v
 
 ## Parcours par leçon (tags Git)
 
-Des **tags Git** permettent de retrouver le code à un point du parcours. Tous pointent vers le même état complet du dépôt ; ils servent de repères pour les leçons.
+Chaque **tag Git** pointe vers une version du code **limitée à cette leçon** : le code est propre et ne contient que ce qui est nécessaire pour la leçon (pas de Query/Export en leçon 1, pas de CRUD en leçon 2, etc.). La branche `master` contient l’application complète.
 
-| Tag | Contenu du cours |
-|-----|------------------|
-| `lesson-1-auth` | Authentification (Client Credentials, token). |
-| `lesson-2-query-export` | Query + Export. |
-| `lesson-3-crud` | GET, POST, PATCH, DELETE (factures, lignes). |
-| `lesson-4-bulk` | Bulk create + statut / download. |
-| `lesson-5-composite` | Composite (plusieurs requêtes en un appel). |
-| `lesson-auth-code-worker` | Flux Authorization Code (Worker Cloudflare, GET vendors). |
+| Tag | Code inclus (uniquement) |
+|-----|--------------------------|
+| `lesson-1-auth` | Config + authentification (Client Credentials, token). |
+| `lesson-2-query-export` | Auth + Query + Export. |
+| `lesson-3-crud` | Auth + Query + Export + GET/POST/PATCH/DELETE (factures, lignes). |
+| `lesson-4-bulk` | Auth + Query + Export + CRUD + Bulk (create + statut / download). |
+| `lesson-5-composite` | Application complète (y compris Composite). |
+| `lesson-auth-code-worker` | Même base que `lesson-1-auth` + Worker Cloudflare (Authorization Code, GET vendors). |
 
-Pour utiliser un tag (lecture seule) : `git checkout lesson-2-query-export`. Pour revenir sur la branche principale : `git checkout master`.
+Pour utiliser un tag : `git checkout lesson-2-query-export`. Pour revenir à l’application complète : `git checkout master`.
 
 ---
 
