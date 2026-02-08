@@ -371,7 +371,7 @@ Le service **Composite** permet d’envoyer plusieurs sous-requêtes (GET, POST,
 
 - **Composite(subRequests, accessToken)** : POST `/services/core/composite` avec le corps JSON = tableau de `CompositeSubRequest`. Réponse désérialisable en `CompositeResponse` (Result = un élément par sous-requête, Meta = totalCount, totalSuccess, totalError).
 
-En démo (**option 12**), **RunCompositeAsync** envoie deux GET en un appel : liste des factures puis détail de la facture key 11 ; affiche totalSuccess et totalError.
+En démo (**option 12**), **RunCompositeAsync** crée **2 factures** en un seul appel : deux sous-requêtes POST avec le même modèle **InvoiceCreate** (customer, invoiceDate, dueDate, lines) que l’option 4 ; affiche totalSuccess et totalError.
 
 ---
 

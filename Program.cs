@@ -344,14 +344,45 @@ static async Task RunBulkGetResultAsync(IntacctService intacctService, Token tok
 }
 
 /// <summary>
-/// Démo composite : deux GET en un seul appel (liste factures + détail d'une facture).
+/// Démo composite : création de 2 factures en un seul appel (même modèle InvoiceCreate que POST facture).
 /// </summary>
 static async Task RunCompositeAsync(IntacctService intacctService, Token token)
 {
+    var invoice1 = new InvoiceCreate
+    {
+        customer = { id = "CL0170" },
+        invoiceDate = "2025-12-06",
+        dueDate = "2025-12-31",
+        lines =
+        [
+            new Line
+            {
+                txnAmount = "100",
+                glAccount = { id = "701000" },
+                dimensions = { customer = new IdRef { id = "CL0170" }, location = new IdRef { id = "DEMO_1" } }
+            }
+        ]
+    };
+    var invoice2 = new InvoiceCreate
+    {
+        customer = { id = "CL0170" },
+        invoiceDate = "2025-12-07",
+        dueDate = "2026-01-01",
+        lines =
+        [
+            new Line
+            {
+                txnAmount = "200",
+                glAccount = { id = "701000" },
+                dimensions = { customer = new IdRef { id = "CL0170" }, location = new IdRef { id = "DEMO_1" } }
+            }
+        ]
+    };
+
     var subRequests = new List<CompositeSubRequest>
     {
-        new() { method = "GET", path = "/objects/accounts-receivable/invoice" },
-        new() { method = "GET", path = "/objects/accounts-receivable/invoice/11" }
+        new() { method = "POST", path = "/objects/accounts-receivable/invoice", body = invoice1 },
+        new() { method = "POST", path = "/objects/accounts-receivable/invoice", body = invoice2 }
     };
 
     var response = await intacctService.Composite(subRequests, token.access_token);
