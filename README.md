@@ -1,6 +1,6 @@
 # Sage Intacct REST API – Cours / Atelier
 
-Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2, **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Bulk** (create asynchrone + statut, callback URL optionnel), **Composite** (plusieurs requêtes en un appel). Support de cours pour ateliers et onboarding.
+Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2 (**Client Credentials** dans l’app .NET, **Authorization Code** via le Worker), **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Bulk** (create asynchrone + statut, callback URL optionnel), **Composite** (plusieurs requêtes en un appel). Le dépôt inclut aussi un **Worker Cloudflare** minimal (auth Authorization Code + GET vendors). Support de cours pour ateliers et onboarding.
 
 ---
 
@@ -9,7 +9,7 @@ Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intac
 À l’issue de ce cours, vous saurez :
 
 1. **Configurer** une application .NET pour appeler l’API Intacct (config, secrets).
-2. **Obtenir un token** OAuth2 (client_credentials) et l’utiliser dans les requêtes.
+2. **Obtenir un token** OAuth2 : flux Client Credentials (app .NET) et Authorization Code (démo Worker) ; l’utiliser dans les requêtes.
 3. **Construire une Query** : object, fields, filtres, expression, tri, pagination.
 4. **Désérialiser** la réponse Query (Result + Meta) avec Newtonsoft.
 5. **Exporter** le résultat d’une requête en fichier (PDF, CSV, etc.) et l’enregistrer.
@@ -93,6 +93,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/Composite/CompositeSubRequest.cs** | Une sous-requête composite : method, path, body (optionnel), resultReference (optionnel), headers (optionnel). |
 | **Models/Composite/CompositeResponse.cs** | Réponse de POST /services/core/composite : ia::result (tableau), ia::meta (totalCount, totalSuccess, totalError). |
 | **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**, **Composite**. Tous les corps JSON sont sérialisés via un helper commun (NullValueHandling.Ignore). **Composite** envoie une liste de `CompositeSubRequest` vers `/services/core/composite`. |
+| **cloudflare-worker/worker.js** | Démo **Authorization Code** : page d’accueil (redirection Sage) → `/callback` (échange code→token) → `/vendors` (GET fournisseurs avec le token). Code minimal, sans Bulk. Pour déployer : Wrangler (voir dossier). |
 
 ---
 
@@ -108,11 +109,16 @@ La configuration est lue depuis `appsettings.json` (IdClient, SecretClient, Util
 
 ### Étape 2 – Authentification (OAuth2)
 
-- **ObtenirToken()** envoie une requête POST vers `oauth2/token` avec `grant_type=client_credentials`, `client_id`, `client_secret`, `username`.
-- La réponse JSON est désérialisée dans **Token** (Newtonsoft) : on récupère `access_token`, `refresh_token`, `expires_in`, et on calcule `DateExpiration` et `EstExpire`.
-- Le token est **passé explicitement** à Query et Export (pas stocké dans le service). Cela permet plus tard de gérer plusieurs sociétés/entités en utilisant des tokens différents.
+Intacct propose **deux flux** OAuth2 :
 
-**À retenir :** chaque appel à Query ou Export doit être fait avec un token valide. Rafraîchir le token (RafraichirToken) ou en obtenir un nouveau si nécessaire.
+| Flux | Usage | Ce projet |
+|------|--------|-----------|
+| **Client Credentials** | Application qui s’authentifie elle-même (machine-à-machine). Pas de connexion utilisateur. | **ObtenirToken()** dans l’app .NET : POST `oauth2/token` avec `grant_type=client_credentials`, `client_id`, `client_secret`, `username`. |
+| **Authorization Code** | Un utilisateur se connecte via le navigateur ; l’app reçoit un code puis l’échange contre un token. | Démo dans **cloudflare-worker/worker.js** : redirection vers Sage → callback avec `code` → échange code→token → utilisation du token (ex. GET vendors). |
+
+**Dans l’app .NET (Client Credentials)** : la réponse est désérialisée dans **Token** (Newtonsoft) : `access_token`, `refresh_token`, `expires_in`, puis `DateExpiration` et `EstExpire`. Le token est **passé explicitement** à chaque appel (Query, Export, etc.).
+
+**À retenir :** chaque appel API doit être fait avec un token valide. Rafraîchir le token (RafraichirToken) ou en obtenir un nouveau si nécessaire.
 
 ---
 
@@ -372,6 +378,21 @@ Le service **Composite** permet d’envoyer plusieurs sous-requêtes (GET, POST,
 - **Composite(subRequests, accessToken)** : POST `/services/core/composite` avec le corps JSON = tableau de `CompositeSubRequest`. Réponse désérialisable en `CompositeResponse` (Result = un élément par sous-requête, Meta = totalCount, totalSuccess, totalError).
 
 En démo (**option 12**), **RunCompositeAsync** crée **2 factures** en un seul appel : deux sous-requêtes POST avec le même modèle **InvoiceCreate** (customer, invoiceDate, dueDate, lines) que l’option 4 ; affiche totalSuccess et totalError.
+
+---
+
+## Démo Authorization Code (Cloudflare Worker)
+
+Pour comprendre le flux **Authorization Code** (connexion d’un utilisateur réel via le navigateur), le dépôt contient un Worker Cloudflare minimal dans **cloudflare-worker/worker.js**.
+
+**Flux en 3 étapes :**
+1. **/** — L’utilisateur clique sur « Se connecter à Sage » ; redirection vers Sage Intacct (authorize).
+2. **/callback** — Sage redirige vers votre URL avec `?code=...`. Le Worker envoie ce code en POST à `oauth2/token` (grant_type=authorization_code, client_id, client_secret, redirect_uri) et obtient `access_token` (et refresh_token). La page affiche le token et un lien « Récupérer les fournisseurs ».
+3. **/vendors** — Le Worker appelle `GET /objects/accounts-payable/vendor` avec l’en-tête `Authorization: Bearer <token>` et affiche la réponse JSON.
+
+**Configuration :** ID_CLIENT et SECRET_CLIENT en variables d’environnement du Worker (ou valeurs par défaut dans le code pour la démo). L’URL de callback est dérivée de l’origine (`/callback`).
+
+**Déploiement :** depuis le dossier `cloudflare-worker`, avec [Wrangler](https://developers.cloudflare.com/workers/wrangler/). En local : `npx wrangler dev`.
 
 ---
 
