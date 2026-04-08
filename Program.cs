@@ -44,8 +44,7 @@ Console.WriteLine("5 - PATCH facture (mise à jour)");
 Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
 Console.WriteLine("7 - PATCH ligne de facture (mise à jour)");
 Console.WriteLine("8 - DELETE facture");
-Console.WriteLine("9 - Tous les scénarios");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9) : ");
+Console.Write("\nVotre choix (1/2/3/4/5/6/7/8) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -73,15 +72,6 @@ switch (choix)
         break;
     case "8":
         await RunInvoiceDelete(intacctService, token);
-        break;
-    case "9":
-        await RunQueryAndExportAsync(intacctService, token);
-        await RunGetInvoicesAsync(intacctService, token);
-        await RunInvoiceDetailAfterListAsync(intacctService, token);
-        await RunInvoiceCreateAsync(intacctService, token);
-        await RunInvoiceUpdateAsync(intacctService, token);
-        await RunBillLineUpdateAsync(intacctService, token);
-        await RunInvoiceLineUpdateAsync(intacctService, token);
         break;
     default:
         Console.WriteLine("\nChoix non reconnu, aucun scénario exécuté.");
