@@ -33,6 +33,8 @@ Ces identifiants se configurent dans Sage Intacct (Société > Web Services ou v
 
 Chaque **tag Git** pointe vers une version du code **limitée à cette leçon** : le code est propre et ne contient que ce qui est nécessaire pour la leçon (pas de Query/Export en leçon 1, pas de CRUD en leçon 2, etc.). La branche `master` contient l’application complète.
 
+Dans chaque tag de leçon, le `Program.cs` est volontairement **focalisé** (menu court, sans option « tous les scénarios ») pour faciliter l’animation en atelier.
+
 | Tag | Code inclus (uniquement) |
 |-----|--------------------------|
 | `lesson-1-auth` | Config + authentification (Client Credentials, token). |
