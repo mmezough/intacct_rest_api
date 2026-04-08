@@ -33,14 +33,12 @@ Console.WriteLine("Est expiré ? : " + token.EstExpire);
 // ========== Menu de démo (Query + Export uniquement) ==========
 Console.WriteLine("\nChoisissez le scénario à exécuter :");
 Console.WriteLine("1 - Query + Export (bill)");
-Console.WriteLine("9 - Idem (tous les scénarios de cette leçon)");
-Console.Write("\nVotre choix (1/9) : ");
+Console.Write("\nVotre choix (1) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
 {
     case "1":
-    case "9":
         await RunQueryAndExportAsync(intacctService, token);
         break;
     default:
