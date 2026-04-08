@@ -1,16 +1,9 @@
 using intacct_rest_api.Models;
-using intacct_rest_api.Models.Batch;
 using intacct_rest_api.Models.Bulk;
-using intacct_rest_api.Models.Export;
-using intacct_rest_api.Models.InvoiceCreate;
-using intacct_rest_api.Models.BillLineUpdate;
-using intacct_rest_api.Models.InvoiceLineUpdate;
-using intacct_rest_api.Models.InvoiceUpdate;
-using intacct_rest_api.Models.Query;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 
-// ========== 1. Configuration ==========
+// Leçon 5 : Bulk focus (auth + bulk create + bulk status/download).
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
 var urlBase = "https://api.intacct.com/ia/api/v1/";
 var idClient = config["IdClient"];
@@ -19,7 +12,6 @@ var utilisateur = config["Utilisateur"];
 
 var intacctService = new IntacctService(urlBase, idClient!, secretClient!, utilisateur!);
 
-// ========== 2. Auth : obtenir le token ==========
 var reponseAuth = await intacctService.ObtenirToken();
 if (!reponseAuth.IsSuccessful)
 {
@@ -32,75 +24,24 @@ Console.WriteLine("Token d'accès : " + token.access_token.Substring(0, 40) + ".
 Console.WriteLine("Date d'expiration : " + token.DateExpiration);
 Console.WriteLine("Est expiré ? : " + token.EstExpire);
 
-// Plus tard : rafraîchir / révoquer
-// var reponseRafraichir = await intacctService.RafraichirToken(token.refresh_token);
-// var revokeOk = await intacctService.RevokerToken(token.access_token);
-
-// ========== Menu de démo ==========
 Console.WriteLine("\nChoisissez le scénario à exécuter :");
-Console.WriteLine("1 - Query + Export (bill)");
-Console.WriteLine("2 - GET factures (liste)");
-Console.WriteLine("3 - GET facture (détail)");
-Console.WriteLine("4 - POST facture (création)");
-Console.WriteLine("5 - PATCH facture (mise à jour)");
-Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
-Console.WriteLine("7 - PATCH ligne de facture (mise à jour)");
-Console.WriteLine("8 - DELETE facture");
-Console.WriteLine("9 - Tous les scénarios");
-Console.WriteLine("10 - Batch mode (GET/POST/PATCH/DELETE)");
-Console.WriteLine("11 - Bulk create (vendors)");
-Console.WriteLine("12 - Bulk get result (statut + download)");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11/12) : ");
+Console.WriteLine("1 - Bulk create (vendors)");
+Console.WriteLine("2 - Bulk get result (statut + download)");
+Console.Write("\nVotre choix (1/2) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
 {
     case "1":
-        await RunQueryAndExportAsync(intacctService, token);
-        break;
-    case "2":
-        await RunGetInvoicesAsync(intacctService, token);
-        break;
-    case "3":
-        await RunGetInvoiceDetailAsync(intacctService, token);
-        break;
-    case "4":
-        await RunInvoiceCreateAsync(intacctService, token);
-        break;
-    case "5":
-        await RunInvoiceUpdateAsync(intacctService, token);
-        break;
-    case "6":
-        await RunBillLineUpdateAsync(intacctService, token);
-        break;
-    case "7":
-        await RunInvoiceLineUpdateAsync(intacctService, token);
-        break;
-    case "8":
-        await RunInvoiceDelete(intacctService, token);
-        break;
-    case "10":
-        await RunBatchAsync(intacctService, token);
-        break;
-    case "11":
         await RunBulkAsync(intacctService, token);
         break;
-    case "12":
-        Console.Write("JobId (ex. copié après option 11) : ");
+    case "2":
+        Console.Write("JobId (ex. copié après option 1) : ");
         var jobId = Console.ReadLine()?.Trim();
         if (!string.IsNullOrEmpty(jobId))
             await RunBulkGetResultAsync(intacctService, token, jobId);
         else
             Console.WriteLine("JobId vide, annulé.");
-        break;
-    case "9":
-        await RunQueryAndExportAsync(intacctService, token);
-        await RunGetInvoicesAsync(intacctService, token);
-        await RunInvoiceDetailAfterListAsync(intacctService, token);
-        await RunInvoiceCreateAsync(intacctService, token);
-        await RunInvoiceUpdateAsync(intacctService, token);
-        await RunBillLineUpdateAsync(intacctService, token);
-        await RunInvoiceLineUpdateAsync(intacctService, token);
         break;
     default:
         Console.WriteLine("\nChoix non reconnu, aucun scénario exécuté.");
@@ -110,255 +51,6 @@ switch (choix)
 Console.WriteLine("\nTerminé. Appuyez sur Entrée pour fermer.");
 Console.ReadLine();
 
-// === Méthodes de démo ===
-
-static async Task RunQueryAndExportAsync(IntacctService intacctService, Token token)
-{
-    // ========== 3. Requête Query ==========
-    var queryObject = "accounts-payable/bill";
-    var queryFields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount", "entity.id" };
-
-    var queryFilters = new List<Dictionary<string, object>>
-    {
-        Filter.GreaterThan("totalTxnAmount", "100"),
-        Filter.Between("postingDate", new DateTime(2025, 1, 1), new DateTime(2025, 1, 31))
-    };
-
-    var queryFilterExpression = FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1));
-    var queryFilterExpressionString = FilterExpression.Build(queryFilters, queryFilterExpression);
-
-    var queryFilterParam = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false };
-    var querySort = new List<Dictionary<string, string>> { new() { ["totalTxnAmount"] = "desc" } };
-
-    var queryRequest = new QueryRequest
-    {
-        Object = queryObject,
-        Fields = queryFields,
-        Filters = queryFilters,
-        FilterExpression = queryFilterExpressionString,
-        FilterParameters = queryFilterParam,
-        OrderBy = querySort,
-        Start = 1,
-        Size = 100
-    };
-
-    var reponseQuery = await intacctService.Query(queryRequest, token.access_token);
-    Console.WriteLine("\nRequête - Succès : " + reponseQuery.IsSuccessful);
-
-    // Désérialiser + afficher
-    var queryResponse = JsonConvert.DeserializeObject<QueryResponse>(reponseQuery.Content!);
-    Console.WriteLine("Résultats : " + queryResponse!.Result.Count);
-    if (queryResponse.Result.Count > 0)
-        Console.WriteLine("Premier : " + string.Join(", ", queryResponse.Result[0].Select(kv => kv.Key + "=" + kv.Value)));
-
-    // Export
-    var fileType = ExportFileType.Pdf;
-    var reponseExport = await intacctService.Export(queryRequest, fileType, token.access_token);
-    var nomFichier = $"{queryRequest.Object.Replace("/", "-")}-export-{DateTime.Now:ddMMyyyy-HHmmss}.pdf";
-    File.WriteAllBytes(Path.Combine("C:\\temp", nomFichier), reponseExport.RawBytes!);
-    Console.WriteLine("Fichier : C:\\temp\\" + nomFichier);
-}
-
-static async Task RunGetInvoicesAsync(IntacctService intacctService, Token token)
-{
-    var reponse = await intacctService.GetInvoices(token.access_token);
-    var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>(reponse.Content!);
-    foreach (var inv in list!.Result.Take(3))
-        Console.WriteLine($"key={inv.key}, id={inv.id}");
-}
-
-static async Task RunGetInvoiceDetailAsync(IntacctService intacctService, Token token)
-{
-    var key = "11"; // key facture démo
-    var reponse = await intacctService.GetInvoiceByKey(key, token.access_token);
-    var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>(reponse.Content!);
-    var h = detail!.Invoice;
-    Console.WriteLine($"Facture {h.invoiceNumber}, client {h.customer.name}, total {h.totalTxnAmount}");
-    var l = h.lines[0];
-    Console.WriteLine($"Ligne 1 : {l.glAccount.id}, {l.txnAmount}, lieu {l.dimensions.location.id}");
-}
-
-static async Task RunInvoiceDetailAfterListAsync(IntacctService intacctService, Token token)
-{
-    var list = JsonConvert.DeserializeObject<InvoiceReferenceListResponse>((await intacctService.GetInvoices(token.access_token)).Content!);
-    var key = list!.Result[0].key;
-    var detail = JsonConvert.DeserializeObject<InvoiceDetailResponse>((await intacctService.GetInvoiceByKey(key, token.access_token)).Content!);
-    var h = detail!.Invoice;
-    Console.WriteLine($"Facture {h.invoiceNumber}, total {h.totalTxnAmount}; ligne 1 key={h.lines[0].key}");
-}
-
-static async Task RunInvoiceCreateAsync(IntacctService intacctService, Token token)
-{
-    // POST facture : on assigne explicitement .Id (Customer.Id, GlAccount.Id, Dimensions.Customer.Id, Dimensions.Location.Id).
-    var createRequest = new InvoiceCreate
-    {
-        customer = { id = "CL0170" },
-        invoiceDate = "2025-12-06",
-        dueDate = "2025-12-31",
-        lines =
-        [
-            new Line
-            {
-                txnAmount = "100",
-                glAccount = { id = "701000" },
-                dimensions =
-                {
-                    customer = new IdRef { id = "CL0170" },
-                    location = new IdRef { id = "DEMO_1" }
-                }
-            }
-        ]
-    };
-
-    Console.WriteLine("Json => \n"+ JsonConvert.SerializeObject(createRequest, Formatting.Indented));
-
-    var reponse = await intacctService.CreateInvoice(createRequest, token.access_token);
-    Console.WriteLine("POST invoice - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunInvoiceUpdateAsync(IntacctService intacctService, Token token)
-{
-    var key = "11";
-    var updateRequest = new InvoiceUpdate
-    {
-        referenceNumber = "PO-UPDATED-99",
-        description = "Modifié par Atelier",
-        dueDate = "2026-01-15",
-    };
-
-    var reponse = await intacctService.UpdateInvoice(updateRequest, key, token.access_token);
-
-    Console.WriteLine("PATCH invoice - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunBillLineUpdateAsync(IntacctService intacctService, Token token)
-{
-    var lineKey = "3"; // key ligne bill démo
-    var updateRequest = new BillLineUpdate
-    {
-        txnAmount = "150.00",
-        memo = "Démo bill line",
-        dimensions = new BillLineDimensions
-        {
-            department = new IdRef { id = "922" },
-            location = new IdRef { id = "DEMO_1" }
-        }
-    };
-
-    var reponse = await intacctService.UpdateBillLine(updateRequest, lineKey, token.access_token);
-
-    Console.WriteLine("PATCH bill-line - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunInvoiceLineUpdateAsync(IntacctService intacctService, Token token)
-{
-    var lineKey = "11"; // key ligne facture démo
-    var updateRequest = new InvoiceLineUpdate
-    {
-        txnAmount = "150.00",
-        memo = "Démo invoice line"
-    };
-
-    var reponse = await intacctService.UpdateInvoiceLine(updateRequest, lineKey, token.access_token);
-
-    Console.WriteLine("PATCH invoice-line - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunInvoiceDelete(IntacctService intacctService, Token token)
-{
-    var key = "11";
-    var reponse = await intacctService.DeleteInvoice(key, token.access_token);
-
-    Console.WriteLine("DELETE invoice - Succès : " + reponse.IsSuccessful);
-}
-
-static async Task RunBatchAsync(IntacctService intacctService, Token token)
-{
-    var objectPath = "objects/accounts-payable/vendor";
-    var suffix = DateTime.UtcNow.ToString("MMddHHmmss");
-    var newVendors = new List<object>
-    {
-        new Dictionary<string, object> { ["id"] = $"batchv1-{suffix}", ["name"] = $"Batch Vendor 1 {suffix}" },
-        new Dictionary<string, object> { ["id"] = $"batchv2-{suffix}", ["name"] = $"Batch Vendor 2 {suffix}" },
-        new Dictionary<string, object> { ["id"] = $"batchv3-{suffix}", ["name"] = $"Batch Vendor 3 {suffix}" }
-    };
-
-    Console.WriteLine("\n[BATCH] 1) POST create (3 vendors)");
-    var createRes = await intacctService.BatchCreate(objectPath, newVendors, token.access_token);
-    Console.WriteLine("HTTP status create : " + (int)createRes.StatusCode);
-    if (!createRes.IsSuccessful || string.IsNullOrWhiteSpace(createRes.Content))
-    {
-        Console.WriteLine("Batch create échec : " + createRes.Content);
-        return;
-    }
-
-    var created = JsonConvert.DeserializeObject<BatchResponse>(createRes.Content!);
-    PrintBatchSummary(created);
-    var keys = created!.Result.Where(x => !string.IsNullOrWhiteSpace(x.key)).Select(x => x.key!).ToList();
-    if (keys.Count == 0)
-    {
-        Console.WriteLine("Aucune key retournée, suite de la démo annulée.");
-        return;
-    }
-    Console.WriteLine("Keys créées : " + string.Join(", ", keys));
-
-    Console.WriteLine("\n[BATCH] 2) GET by keys");
-    var getRes = await intacctService.BatchGetByKeys(objectPath, keys, token.access_token);
-    Console.WriteLine("HTTP status get : " + (int)getRes.StatusCode);
-    Console.WriteLine("Longueur payload : " + (getRes.Content?.Length ?? 0));
-
-    Console.WriteLine("\n[BATCH] 3) PATCH non-atomic (mise à jour des noms)");
-    var patchItems = keys.Select((k, i) =>
-    {
-        var item = new BatchPatchItem { key = k };
-        item["name"] = $"Batch Vendor {i + 1} UPDATED {suffix}";
-        return item;
-    }).ToList();
-    var patchRes = await intacctService.BatchUpdate(objectPath, patchItems, token.access_token, atomic: false);
-    Console.WriteLine("HTTP status patch non-atomic : " + (int)patchRes.StatusCode);
-    if (!string.IsNullOrWhiteSpace(patchRes.Content))
-        PrintBatchSummary(JsonConvert.DeserializeObject<BatchResponse>(patchRes.Content!));
-
-    Console.WriteLine("\n[BATCH] 4) PATCH atomic (1 key invalide pour illustrer l'échec transactionnel)");
-    var invalidPatchItem = new BatchPatchItem { key = "999999999" };
-    invalidPatchItem["name"] = "Invalid key to force atomic error";
-    var atomicPatch = new List<BatchPatchItem>(patchItems)
-    {
-        invalidPatchItem
-    };
-    var atomicRes = await intacctService.BatchUpdate(objectPath, atomicPatch, token.access_token, atomic: true);
-    Console.WriteLine("HTTP status patch atomic : " + (int)atomicRes.StatusCode);
-    if (!string.IsNullOrWhiteSpace(atomicRes.Content))
-        PrintBatchSummary(JsonConvert.DeserializeObject<BatchResponse>(atomicRes.Content!));
-
-    Console.WriteLine("\n[BATCH] 5) DELETE by keys (non-atomic)");
-    var deleteRes = await intacctService.BatchDeleteByKeys(objectPath, keys, token.access_token, atomic: false);
-    Console.WriteLine("HTTP status delete : " + (int)deleteRes.StatusCode);
-    if (!string.IsNullOrWhiteSpace(deleteRes.Content))
-        PrintBatchSummary(JsonConvert.DeserializeObject<BatchResponse>(deleteRes.Content!));
-    else
-        Console.WriteLine("DELETE batch : payload vide (ex. 204 No Content).");
-}
-
-static void PrintBatchSummary(BatchResponse? response)
-{
-    if (response == null)
-    {
-        Console.WriteLine("Réponse batch non désérialisable.");
-        return;
-    }
-
-    Console.WriteLine($"meta => totalCount={response.Meta.totalCount}, totalSuccess={response.Meta.totalSuccess}, totalError={response.Meta.totalError}");
-    foreach (var (item, idx) in response.Result.Select((x, i) => (x, i + 1)))
-    {
-        var status = item.Status?.ToString() ?? "n/a";
-        var key = string.IsNullOrWhiteSpace(item.key) ? "—" : item.key;
-        var id = string.IsNullOrWhiteSpace(item.id) ? "—" : item.id;
-        var message = item.Error?.message ?? "";
-        Console.WriteLine($"  [{idx}] status={status}, key={key}, id={id}" + (string.IsNullOrWhiteSpace(message) ? "" : $", error={message}"));
-    }
-}
-
 static async Task RunBulkAsync(IntacctService intacctService, Token token)
 {
     var request = new BulkCreateRequest
@@ -367,7 +59,6 @@ static async Task RunBulkAsync(IntacctService intacctService, Token token)
         operation = "create",
         jobFile = "file",
         fileContentType = "json"
-        // callbackURL = "https://your-server.com/bulk/callback"  // optionnel
     };
 
     var jsonBody = """
@@ -395,15 +86,11 @@ static async Task RunBulkAsync(IntacctService intacctService, Token token)
     var createData = JsonConvert.DeserializeObject<BulkCreateResponse>(createRes.Content!);
     var jobId = createData!.Result.jobId;
     Console.WriteLine("Bulk envoyé. jobId : " + jobId);
-    Console.WriteLine("Pour vérifier le statut et télécharger le résultat : option 11 avec ce jobId.");
+    Console.WriteLine("Pour vérifier le statut et télécharger le résultat : option 2 avec ce jobId.");
 }
 
-/// <summary>
-/// Démo simple : vérifier le statut d'un job bulk puis télécharger le résultat (option 11).
-/// </summary>
 static async Task RunBulkGetResultAsync(IntacctService intacctService, Token token, string jobId)
 {
-    // 1. Statut
     var statusRes = await intacctService.BulkStatus(jobId, token.access_token, download: false);
     if (!statusRes.IsSuccessful)
     {
@@ -411,9 +98,8 @@ static async Task RunBulkGetResultAsync(IntacctService intacctService, Token tok
         return;
     }
     var statusData = JsonConvert.DeserializeObject<BulkStatusResponse>(statusRes.Content!);
-    Console.WriteLine("Statut : " + statusData!.Result.status + ", percentComplete : " + (statusData.Result.percentComplete?.ToString() ?? "—"));
+    Console.WriteLine("Statut : " + statusData!.Result.status + ", percentComplete : " + (statusData.Result.percentComplete?.ToString() ?? "-"));
 
-    // 2. Download
     var downloadRes = await intacctService.BulkStatus(jobId, token.access_token, download: true);
     if (!downloadRes.IsSuccessful)
     {
@@ -426,7 +112,8 @@ static async Task RunBulkGetResultAsync(IntacctService intacctService, Token tok
         var parsed = JsonConvert.DeserializeObject(content);
         content = JsonConvert.SerializeObject(parsed, Formatting.Indented);
     }
-    catch { /* garder le contenu brut si pas du JSON */ }
+    catch
+    {
+    }
     Console.WriteLine("Résultat (download) :\n" + content);
 }
-
