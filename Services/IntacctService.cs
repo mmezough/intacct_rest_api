@@ -1,5 +1,6 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Bulk;
+using intacct_rest_api.Models.Batch;
 using intacct_rest_api.Models.Composite;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
@@ -12,6 +13,7 @@ using RestSharp;
 
 public class IntacctService
 {
+    private const int BatchMaxRecords = 500;
     private static readonly JsonSerializerSettings JsonBodySettings = new()
     {
         NullValueHandling = NullValueHandling.Ignore
@@ -209,6 +211,62 @@ public class IntacctService
     }
 
     /// <summary>
+    /// Batch GET: récupère plusieurs enregistrements d'un même objet dans un seul appel
+    /// via /objects/{application}/{object}/{k1,k2,...}.
+    /// </summary>
+    public async Task<RestResponse> BatchGetByKeys(string objectPath, IReadOnlyList<string> keys, string accessToken)
+    {
+        ValidateBatchKeys(keys);
+        var joinedKeys = string.Join(",", keys);
+        var restRequest = new RestRequest($"{NormalizeObjectPath(objectPath)}/{joinedKeys}", Method.Get);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        return await _client.ExecuteAsync(restRequest);
+    }
+
+    /// <summary>
+    /// Batch POST: crée plusieurs enregistrements d'un même objet avec un body tableau JSON.
+    /// </summary>
+    public async Task<RestResponse> BatchCreate(string objectPath, IReadOnlyCollection<object> records, string accessToken, bool atomic = false)
+    {
+        ValidateBatchRecords(records);
+        var restRequest = new RestRequest(NormalizeObjectPath(objectPath), Method.Post);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        ApplyAtomicHeader(restRequest, atomic);
+        restRequest.AddStringBody(SerializeBody(records), DataFormat.Json);
+        return await _client.ExecuteAsync(restRequest);
+    }
+
+    /// <summary>
+    /// Batch PATCH: met à jour plusieurs enregistrements d'un même objet avec key dans chaque élément du body.
+    /// </summary>
+    public async Task<RestResponse> BatchUpdate(string objectPath, IReadOnlyCollection<BatchPatchItem> records, string accessToken, bool atomic = false)
+    {
+        ValidateBatchRecords(records);
+        if (records.Any(x => string.IsNullOrWhiteSpace(x.key)))
+            throw new ArgumentException("Chaque élément batch PATCH doit contenir une key.");
+
+        var restRequest = new RestRequest(NormalizeObjectPath(objectPath), Method.Patch);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        ApplyAtomicHeader(restRequest, atomic);
+        restRequest.AddStringBody(SerializeBody(records), DataFormat.Json);
+        return await _client.ExecuteAsync(restRequest);
+    }
+
+    /// <summary>
+    /// Batch DELETE: supprime plusieurs enregistrements d'un même objet dans un seul appel
+    /// via /objects/{application}/{object}/{k1,k2,...}.
+    /// </summary>
+    public async Task<RestResponse> BatchDeleteByKeys(string objectPath, IReadOnlyList<string> keys, string accessToken, bool atomic = false)
+    {
+        ValidateBatchKeys(keys);
+        var joinedKeys = string.Join(",", keys);
+        var restRequest = new RestRequest($"{NormalizeObjectPath(objectPath)}/{joinedKeys}", Method.Delete);
+        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
+        ApplyAtomicHeader(restRequest, atomic);
+        return await _client.ExecuteAsync(restRequest);
+    }
+
+    /// <summary>
     /// Envoie une requête composite (plusieurs sous-requêtes en un seul POST). POST /services/core/composite.
     /// </summary>
     public async Task<RestResponse> Composite(List<CompositeSubRequest> subRequests, string accessToken)
@@ -217,5 +275,37 @@ public class IntacctService
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
         restRequest.AddStringBody(SerializeBody(subRequests), DataFormat.Json);
         return await _client.ExecuteAsync(restRequest);
+    }
+
+    private static string NormalizeObjectPath(string objectPath)
+    {
+        if (string.IsNullOrWhiteSpace(objectPath))
+            throw new ArgumentException("objectPath ne peut pas être vide.");
+
+        return objectPath.Trim().TrimStart('/');
+    }
+
+    private static void ValidateBatchRecords<T>(IReadOnlyCollection<T> records)
+    {
+        if (records is null || records.Count == 0)
+            throw new ArgumentException("La requête batch doit contenir au moins un enregistrement.");
+        if (records.Count > BatchMaxRecords)
+            throw new ArgumentException($"La requête batch est limitée à {BatchMaxRecords} enregistrements.");
+    }
+
+    private static void ValidateBatchKeys(IReadOnlyList<string> keys)
+    {
+        if (keys is null || keys.Count == 0)
+            throw new ArgumentException("La requête batch doit contenir au moins une key.");
+        if (keys.Count > BatchMaxRecords)
+            throw new ArgumentException($"La requête batch est limitée à {BatchMaxRecords} clés.");
+        if (keys.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("Toutes les clés batch doivent être non vides.");
+    }
+
+    private static void ApplyAtomicHeader(RestRequest request, bool atomic)
+    {
+        if (atomic)
+            request.AddHeader("X-IA-API-Param-Transaction", "true");
     }
 }

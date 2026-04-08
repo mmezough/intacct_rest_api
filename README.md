@@ -1,6 +1,6 @@
 # Sage Intacct REST API – Cours / Atelier
 
-Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2 (**Client Credentials** dans l’app .NET, **Authorization Code** via le Worker), **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Bulk** (create asynchrone + statut, callback URL optionnel), **Composite** (plusieurs requêtes en un appel). Le dépôt inclut aussi un **Worker Cloudflare** minimal (auth Authorization Code + GET vendors). Support de cours pour ateliers et onboarding.
+Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2 (**Client Credentials** dans l’app .NET, **Authorization Code** via le Worker), **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Batch** (plusieurs enregistrements d’un même objet en un appel), **Bulk** (create asynchrone + statut, callback URL optionnel), **Composite** (plusieurs requêtes en un appel). Le dépôt inclut aussi un **Worker Cloudflare** minimal (auth Authorization Code + GET vendors). Support de cours pour ateliers et onboarding.
 
 ---
 
@@ -38,8 +38,9 @@ Chaque **tag Git** pointe vers une version du code **limitée à cette leçon** 
 | `lesson-1-auth` | Config + authentification (Client Credentials, token). |
 | `lesson-2-query-export` | Auth + Query + Export. |
 | `lesson-3-crud` | Auth + Query + Export + GET/POST/PATCH/DELETE (factures, lignes). |
-| `lesson-4-bulk` | Auth + Query + Export + CRUD + Bulk (create + statut / download). |
-| `lesson-5-composite` | Application complète (y compris Composite). |
+| `lesson-4-batch` | Auth + Query + Export + CRUD + Batch (GET/POST/PATCH/DELETE sur un même objet). |
+| `lesson-5-bulk` | Auth + Query + Export + CRUD + Batch + Bulk (create + statut / download). |
+| `lesson-6-composite` | Application complète (y compris Composite). |
 | `lesson-auth-code-worker` | Même base que `lesson-1-auth` + Worker Cloudflare (Authorization Code, GET vendors). |
 
 Pour utiliser un tag : `git checkout lesson-2-query-export`. Pour revenir à l’application complète : `git checkout master`.
@@ -88,7 +89,7 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Bulk create (10)**, **Bulk get result – statut + download (11)**, **Composite (12)**. |
+| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Batch mode (10)**, **Bulk create (11)**, **Bulk get result – statut + download (12)**, **Composite (13)**. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
 | **Models/Token.cs** | Modèle du token OAuth (access_token, refresh_token, expires_in, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. Noms de propriétés alignés sur le JSON (snake_case). |
 | **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
@@ -107,9 +108,10 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 | **Models/Bulk/BulkCreateRequest.cs** | Corps de la partie `ia::requestBody` pour le bulk create : objectName, operation, jobFile, fileContentType, callbackURL (optionnel). |
 | **Models/Bulk/BulkCreateResponse.cs** | Réponse du bulk create (201) : ia::result avec jobId. |
 | **Models/Bulk/BulkStatusResponse.cs** | Réponse du bulk status (200) : ia::result avec status, percentComplete. |
+| **Models/Batch/BatchResponse.cs** | Réponse batch (ia::result + ia::meta), statut par élément (`ia::status`) et erreur (`ia::error`) ; inclut `BatchPatchItem` pour PATCH en lot. |
 | **Models/Composite/CompositeSubRequest.cs** | Une sous-requête composite : method, path, body (optionnel), resultReference (optionnel), headers (optionnel). |
 | **Models/Composite/CompositeResponse.cs** | Réponse de POST /services/core/composite : ia::result (tableau), ia::meta (totalCount, totalSuccess, totalError). |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BulkCreate**, **BulkStatus**, **Composite**. Tous les corps JSON sont sérialisés via un helper commun (NullValueHandling.Ignore). **Composite** envoie une liste de `CompositeSubRequest` vers `/services/core/composite`. |
+| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BatchGetByKeys / BatchCreate / BatchUpdate / BatchDeleteByKeys** (avec option atomic), **BulkCreate**, **BulkStatus**, **Composite**. Tous les corps JSON sont sérialisés via un helper commun (NullValueHandling.Ignore). |
 | **cloudflare-worker/worker.js** | Démo **Authorization Code** : page d’accueil (redirection Sage) → `/callback` (échange code→token) → `/vendors` (GET fournisseurs avec le token). Code minimal, sans Bulk. Pour déployer : Wrangler (voir dossier). |
 
 ---
@@ -376,6 +378,21 @@ Suppression d’une facture via **DELETE** `/objects/accounts-receivable/invoice
 
 ---
 
+## Batch (GET/POST/PATCH/DELETE sur un même objet)
+
+Le mode **Batch** permet de traiter plusieurs enregistrements d’un **même objet REST** dans un seul appel.
+
+- **BatchGetByKeys(objectPath, keys, accessToken)** : GET `/objects/{app}/{object}/{k1,k2,...}`.
+- **BatchCreate(objectPath, records, accessToken, atomic=false)** : POST tableau JSON vers `/objects/{app}/{object}`.
+- **BatchUpdate(objectPath, recordsWithKey, accessToken, atomic=false)** : PATCH tableau JSON (chaque élément contient `key`) vers `/objects/{app}/{object}`.
+- **BatchDeleteByKeys(objectPath, keys, accessToken, atomic=false)** : DELETE `/objects/{app}/{object}/{k1,k2,...}`.
+- **Atomic mode** : en passant `atomic=true`, le header `X-IA-API-Param-Transaction: true` est envoyé.
+- **Limite** : 500 enregistrements (ou keys) max par requête (guard côté service).
+
+En démo : **option 10** (**RunBatchAsync**) montre POST, GET by keys, PATCH non-atomic, PATCH atomic (échec transactionnel illustré), puis DELETE by keys.
+
+---
+
 ## Bulk (create + statut)
 
 Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis de **vérifier le statut** jusqu’à completion. Les modèles **Models/Bulk/** décrivent la requête et les réponses de façon typée (production-ready).
@@ -383,7 +400,7 @@ Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis 
 - **BulkCreate(request, jsonArrayBody, accessToken)** : POST multipart vers `/services/bulk/job/create`. **request** est un `BulkCreateRequest` (objectName, operation, jobFile, fileContentType, callbackURL optionnel) ; **jsonArrayBody** est le contenu du fichier JSON (tableau d'enregistrements). Le corps `ia::requestBody` est sérialisé à partir du modèle. Retourne un **jobId** (désérialiser en `BulkCreateResponse`).
 - **BulkStatus(jobId, accessToken, download = false)** : GET `/services/bulk/job/status?jobId=...` ; avec `download=true` une fois le statut `completed`, retourne le fichier résultat (JSON). Réponse désérialisable en `BulkStatusResponse` (Result.status, Result.percentComplete).
 
-En démo : **option 10** (**RunBulkAsync**) envoie un bulk create (vendors), affiche le **jobId** et indique d’utiliser l’option 11 pour le résultat. **Option 11** (**RunBulkGetResultAsync**) demande un jobId (ex. copié après l’option 10), appelle **BulkStatus** une fois pour le statut (status, percentComplete) puis avec **download=true** pour afficher le fichier résultat. Code minimal pour une démo claire. Le callback URL peut être défini sur `request.callbackURL` pour recevoir la notification en temps réel sur un serveur externe.
+En démo : **option 11** (**RunBulkAsync**) envoie un bulk create (vendors), affiche le **jobId** et indique d’utiliser l’option 12 pour le résultat. **Option 12** (**RunBulkGetResultAsync**) demande un jobId (ex. copié après l’option 11), appelle **BulkStatus** une fois pour le statut (status, percentComplete) puis avec **download=true** pour afficher le fichier résultat. Code minimal pour une démo claire. Le callback URL peut être défini sur `request.callbackURL` pour recevoir la notification en temps réel sur un serveur externe.
 
 
 ---
@@ -394,7 +411,7 @@ Le service **Composite** permet d’envoyer plusieurs sous-requêtes (GET, POST,
 
 - **Composite(subRequests, accessToken)** : POST `/services/core/composite` avec le corps JSON = tableau de `CompositeSubRequest`. Réponse désérialisable en `CompositeResponse` (Result = un élément par sous-requête, Meta = totalCount, totalSuccess, totalError).
 
-En démo (**option 12**), **RunCompositeAsync** crée **2 factures** en un seul appel : deux sous-requêtes POST avec le même modèle **InvoiceCreate** (customer, invoiceDate, dueDate, lines) que l’option 4 ; affiche totalSuccess et totalError.
+En démo (**option 13**), **RunCompositeAsync** crée **2 factures** en un seul appel : deux sous-requêtes POST avec le même modèle **InvoiceCreate** (customer, invoiceDate, dueDate, lines) que l’option 4 ; affiche totalSuccess et totalError.
 
 ---
 

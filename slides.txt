@@ -1,0 +1,17 @@
+Atelier Sage Intacct
+
+Section à insérer avant Bulk et Composite :
+
+Batch requests
+- Le Batch traite plusieurs enregistrements d'un même objet REST dans un seul appel.
+- GET batch : /objects/{application}/{object}/{k1,k2,...}
+- POST batch : body JSON = tableau d'objets à créer.
+- PATCH batch : body JSON = tableau d'objets, avec key dans chaque élément.
+- DELETE batch : /objects/{application}/{object}/{k1,k2,...}
+- Limite : 500 enregistrements max par requête.
+- Atomic mode : header X-IA-API-Param-Transaction: true
+- Réponse : ia::result (statut par ligne) + ia::meta (totalSuccess / totalError).
+
+Position recommandée dans le deck :
+- Après CRUD (GET/POST/PATCH/DELETE)
+- Avant Bulk (asynchrone) et Composite (multi-endpoints).

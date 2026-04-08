@@ -1,4 +1,5 @@
 using intacct_rest_api.Models;
+using intacct_rest_api.Models.Batch;
 using intacct_rest_api.Models.Bulk;
 using intacct_rest_api.Models.Composite;
 using intacct_rest_api.Models.Export;
@@ -47,10 +48,11 @@ Console.WriteLine("6 - PATCH ligne de bill (mise à jour)");
 Console.WriteLine("7 - PATCH ligne de facture (mise à jour)");
 Console.WriteLine("8 - DELETE facture");
 Console.WriteLine("9 - Tous les scénarios");
-Console.WriteLine("10 - Bulk create (vendors)");
-Console.WriteLine("11 - Bulk get result (statut + download)");
-Console.WriteLine("12 - Composite (plusieurs requêtes en un appel)");
-Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11/12) : ");
+Console.WriteLine("10 - Batch mode (GET/POST/PATCH/DELETE)");
+Console.WriteLine("11 - Bulk create (vendors)");
+Console.WriteLine("12 - Bulk get result (statut + download)");
+Console.WriteLine("13 - Composite (plusieurs requêtes en un appel)");
+Console.Write("\nVotre choix (1/2/3/4/5/6/7/8/9/10/11/12/13) : ");
 var choix = Console.ReadLine();
 
 switch (choix)
@@ -80,17 +82,20 @@ switch (choix)
         await RunInvoiceDelete(intacctService, token);
         break;
     case "10":
-        await RunBulkAsync(intacctService, token);
+        await RunBatchAsync(intacctService, token);
         break;
     case "11":
-        Console.Write("JobId (ex. copié après option 10) : ");
+        await RunBulkAsync(intacctService, token);
+        break;
+    case "12":
+        Console.Write("JobId (ex. copié après option 11) : ");
         var jobId = Console.ReadLine()?.Trim();
         if (!string.IsNullOrEmpty(jobId))
             await RunBulkGetResultAsync(intacctService, token, jobId);
         else
             Console.WriteLine("JobId vide, annulé.");
         break;
-    case "12":
+    case "13":
         await RunCompositeAsync(intacctService, token);
         break;
     case "9":
@@ -270,6 +275,93 @@ static async Task RunInvoiceDelete(IntacctService intacctService, Token token)
     var reponse = await intacctService.DeleteInvoice(key, token.access_token);
 
     Console.WriteLine("DELETE invoice - Succès : " + reponse.IsSuccessful);
+}
+
+static async Task RunBatchAsync(IntacctService intacctService, Token token)
+{
+    var objectPath = "objects/accounts-payable/vendor";
+    var suffix = DateTime.UtcNow.ToString("MMddHHmmss");
+    var newVendors = new List<object>
+    {
+        new Dictionary<string, object> { ["id"] = $"batchv1-{suffix}", ["name"] = $"Batch Vendor 1 {suffix}" },
+        new Dictionary<string, object> { ["id"] = $"batchv2-{suffix}", ["name"] = $"Batch Vendor 2 {suffix}" },
+        new Dictionary<string, object> { ["id"] = $"batchv3-{suffix}", ["name"] = $"Batch Vendor 3 {suffix}" }
+    };
+
+    Console.WriteLine("\n[BATCH] 1) POST create (3 vendors)");
+    var createRes = await intacctService.BatchCreate(objectPath, newVendors, token.access_token);
+    Console.WriteLine("HTTP status create : " + (int)createRes.StatusCode);
+    if (!createRes.IsSuccessful || string.IsNullOrWhiteSpace(createRes.Content))
+    {
+        Console.WriteLine("Batch create échec : " + createRes.Content);
+        return;
+    }
+
+    var created = JsonConvert.DeserializeObject<BatchResponse>(createRes.Content!);
+    PrintBatchSummary(created);
+    var keys = created!.Result.Where(x => !string.IsNullOrWhiteSpace(x.key)).Select(x => x.key!).ToList();
+    if (keys.Count == 0)
+    {
+        Console.WriteLine("Aucune key retournée, suite de la démo annulée.");
+        return;
+    }
+    Console.WriteLine("Keys créées : " + string.Join(", ", keys));
+
+    Console.WriteLine("\n[BATCH] 2) GET by keys");
+    var getRes = await intacctService.BatchGetByKeys(objectPath, keys, token.access_token);
+    Console.WriteLine("HTTP status get : " + (int)getRes.StatusCode);
+    Console.WriteLine("Longueur payload : " + (getRes.Content?.Length ?? 0));
+
+    Console.WriteLine("\n[BATCH] 3) PATCH non-atomic (mise à jour des noms)");
+    var patchItems = keys.Select((k, i) =>
+    {
+        var item = new BatchPatchItem { key = k };
+        item["name"] = $"Batch Vendor {i + 1} UPDATED {suffix}";
+        return item;
+    }).ToList();
+    var patchRes = await intacctService.BatchUpdate(objectPath, patchItems, token.access_token, atomic: false);
+    Console.WriteLine("HTTP status patch non-atomic : " + (int)patchRes.StatusCode);
+    if (!string.IsNullOrWhiteSpace(patchRes.Content))
+        PrintBatchSummary(JsonConvert.DeserializeObject<BatchResponse>(patchRes.Content!));
+
+    Console.WriteLine("\n[BATCH] 4) PATCH atomic (1 key invalide pour illustrer l'échec transactionnel)");
+    var invalidPatchItem = new BatchPatchItem { key = "999999999" };
+    invalidPatchItem["name"] = "Invalid key to force atomic error";
+    var atomicPatch = new List<BatchPatchItem>(patchItems)
+    {
+        invalidPatchItem
+    };
+    var atomicRes = await intacctService.BatchUpdate(objectPath, atomicPatch, token.access_token, atomic: true);
+    Console.WriteLine("HTTP status patch atomic : " + (int)atomicRes.StatusCode);
+    if (!string.IsNullOrWhiteSpace(atomicRes.Content))
+        PrintBatchSummary(JsonConvert.DeserializeObject<BatchResponse>(atomicRes.Content!));
+
+    Console.WriteLine("\n[BATCH] 5) DELETE by keys (non-atomic)");
+    var deleteRes = await intacctService.BatchDeleteByKeys(objectPath, keys, token.access_token, atomic: false);
+    Console.WriteLine("HTTP status delete : " + (int)deleteRes.StatusCode);
+    if (!string.IsNullOrWhiteSpace(deleteRes.Content))
+        PrintBatchSummary(JsonConvert.DeserializeObject<BatchResponse>(deleteRes.Content!));
+    else
+        Console.WriteLine("DELETE batch : payload vide (ex. 204 No Content).");
+}
+
+static void PrintBatchSummary(BatchResponse? response)
+{
+    if (response == null)
+    {
+        Console.WriteLine("Réponse batch non désérialisable.");
+        return;
+    }
+
+    Console.WriteLine($"meta => totalCount={response.Meta.totalCount}, totalSuccess={response.Meta.totalSuccess}, totalError={response.Meta.totalError}");
+    foreach (var (item, idx) in response.Result.Select((x, i) => (x, i + 1)))
+    {
+        var status = item.Status?.ToString() ?? "n/a";
+        var key = string.IsNullOrWhiteSpace(item.key) ? "—" : item.key;
+        var id = string.IsNullOrWhiteSpace(item.id) ? "—" : item.id;
+        var message = item.Error?.message ?? "";
+        Console.WriteLine($"  [{idx}] status={status}, key={key}, id={id}" + (string.IsNullOrWhiteSpace(message) ? "" : $", error={message}"));
+    }
 }
 
 static async Task RunBulkAsync(IntacctService intacctService, Token token)
