@@ -1,7 +1,6 @@
 using intacct_rest_api.Models;
 using intacct_rest_api.Models.Bulk;
 using intacct_rest_api.Models.Batch;
-using intacct_rest_api.Models.Composite;
 using intacct_rest_api.Models.Export;
 using intacct_rest_api.Models.InvoiceCreate;
 using intacct_rest_api.Models.BillLineUpdate;
@@ -263,17 +262,6 @@ public class IntacctService
         var restRequest = new RestRequest($"{NormalizeObjectPath(objectPath)}/{joinedKeys}", Method.Delete);
         restRequest.AddHeader("Authorization", "Bearer " + accessToken);
         ApplyAtomicHeader(restRequest, atomic);
-        return await _client.ExecuteAsync(restRequest);
-    }
-
-    /// <summary>
-    /// Envoie une requête composite (plusieurs sous-requêtes en un seul POST). POST /services/core/composite.
-    /// </summary>
-    public async Task<RestResponse> Composite(List<CompositeSubRequest> subRequests, string accessToken)
-    {
-        var restRequest = new RestRequest("services/core/composite", Method.Post);
-        restRequest.AddHeader("Authorization", "Bearer " + accessToken);
-        restRequest.AddStringBody(SerializeBody(subRequests), DataFormat.Json);
         return await _client.ExecuteAsync(restRequest);
     }
 
