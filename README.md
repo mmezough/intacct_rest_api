@@ -1,19 +1,6 @@
 # Sage Intacct REST API – Cours / Atelier
 
-Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intacct** : authentification OAuth2 (**Client Credentials** dans l’app .NET, **Authorization Code** via le Worker), **Query** (lecture), **Export** (PDF, CSV, etc.), **GET** (liste / détail de factures), **Batch** (plusieurs enregistrements d’un même objet en un appel), **Bulk** (create asynchrone + statut, callback URL optionnel), **Composite** (plusieurs requêtes en un appel). Le dépôt inclut aussi un **Worker Cloudflare** minimal (auth Authorization Code + GET vendors). Support de cours pour ateliers et onboarding.
-
----
-
-## Objectifs du cours
-
-À l’issue de ce cours, vous saurez :
-
-1. **Configurer** une application .NET pour appeler l’API Intacct (config, secrets).
-2. **Obtenir un token** OAuth2 : flux Client Credentials (app .NET) et Authorization Code (démo Worker) ; l’utiliser dans les requêtes.
-3. **Construire une Query** : object, fields, filtres, expression, tri, pagination.
-4. **Désérialiser** la réponse Query (Result + Meta) avec Newtonsoft.
-5. **Exporter** le résultat d’une requête en fichier (PDF, CSV, etc.) et l’enregistrer.
-6. Utiliser des **endpoints GET** pour lister des factures (références légères) et lire le **détail d’une facture** (en-tête + lignes).
+Application console (.NET 8) minimale pour apprendre à appeler l'**API REST Sage Intacct** : authentification OAuth2 (**Client Credentials**) et requête **Query** (lecture de données).
 
 ---
 
@@ -25,31 +12,9 @@ Application console (.NET 8) pour apprendre à appeler l’**API REST Sage Intac
   - Client Secret
   - Utilisateur Web Services (ex. `webservice@ma-societe`)
 
-Ces identifiants se configurent dans Sage Intacct (Société > Web Services ou via votre administrateur).
-
 ---
 
-## Parcours par leçon (tags Git)
-
-Chaque **tag Git** pointe vers une version du code **limitée à cette leçon** : le code est propre et ne contient que ce qui est nécessaire pour la leçon (pas de Query/Export en leçon 1, pas de CRUD en leçon 2, etc.). La branche `master` contient l’application complète.
-
-Dans chaque tag de leçon, le `Program.cs` est volontairement **focalisé** (menu court, sans option « tous les scénarios ») pour faciliter l’animation en atelier.
-
-| Tag | Code inclus (uniquement) |
-|-----|--------------------------|
-| `lesson-1-auth` | Config + authentification (Client Credentials, token). |
-| `lesson-2-query-export` | Auth + Query + Export. |
-| `lesson-3-crud` | Auth + Query + Export + GET/POST/PATCH/DELETE (factures, lignes). |
-| `lesson-4-batch` | Auth + Query + Export + CRUD + Batch (GET/POST/PATCH/DELETE sur un même objet). |
-| `lesson-5-bulk` | Auth + Query + Export + CRUD + Batch + Bulk (create + statut / download). |
-| `lesson-6-composite` | Application complète (y compris Composite). |
-| `lesson-auth-code-worker` | Même base que `lesson-1-auth` + Worker Cloudflare (Authorization Code, GET vendors). |
-
-Pour utiliser un tag : `git checkout lesson-2-query-export`. Pour revenir à l’application complète : `git checkout master`.
-
----
-
-## Installation pas à pas
+## Installation
 
 ### 1. Cloner le dépôt
 
@@ -58,11 +23,9 @@ git clone <url-du-depot>
 cd intacct_rest_api
 ```
 
-### 2. Créer `appsettings.json` (obligatoire)
+### 2. Créer `appsettings.json`
 
-Le fichier `appsettings.json` **n’est pas** dans le dépôt pour des raisons de sécurité (secrets). Vous devez le créer à la **racine du projet** (à côté de `Program.cs` et du `.csproj`).
-
-**Contenu à mettre dans `appsettings.json` :**
+Le fichier `appsettings.json` n'est pas dans le dépôt (secrets). Créez-le à la racine :
 
 ```json
 {
@@ -72,18 +35,14 @@ Le fichier `appsettings.json` **n’est pas** dans le dépôt pour des raisons d
 }
 ```
 
-Remplacez par vos vraies valeurs. Ne commitez jamais ce fichier.
-
-**Conseil :** vous pouvez ajouter un fichier `appsettings.example.json` (avec des valeurs factices) et le committer pour que l’équipe sache quelles clés renseigner.
-
-### 3. Restaurer les packages et lancer
+### 3. Restaurer et lancer
 
 ```bash
 dotnet restore
 dotnet run
 ```
 
-L’application va successivement : obtenir un token, exécuter une Query exemple, afficher les résultats, exécuter un Export PDF et enregistrer le fichier. La fenêtre reste ouverte jusqu’à ce que vous appuyiez sur Entrée.
+L'application va : obtenir un token, exécuter une Query sur les bills, et afficher les résultats.
 
 ---
 
@@ -91,366 +50,41 @@ L’application va successivement : obtenir un token, exécuter une Query exempl
 
 | Fichier / Dossier | Rôle |
 |-------------------|------|
-| **Program.cs** | Point d’entrée : configuration, auth, Query, Export, GET factures, POST/PATCH facture, PATCH ligne de bill (6), PATCH ligne de facture (7), DELETE facture (8), Tous les scénarios (9), **Batch mode (10)**, **Bulk create (11)**, **Bulk get result – statut + download (12)**, **Composite (13)**. |
+| **Program.cs** | Point d'entrée : configuration, auth, query. |
 | **appsettings.json** | Secrets (à créer ; ignoré par git). |
-| **Models/Token.cs** | Modèle du token OAuth (access_token, refresh_token, expires_in, DateExpiration, EstExpire). Désérialisation avec Newtonsoft. Noms de propriétés alignés sur le JSON (snake_case). |
-| **Models/QueryRequest.cs** | Corps d’une requête Query : Object, Fields, Filters, FilterExpression, FilterParameters, OrderBy, Start, Size. Sérialisé par RestSharp (System.Text.Json). |
-| **Models/QueryResponse.cs** | Réponse Query : Result (liste de lignes) + Meta (totalCount, start, pageSize, next, previous). Désérialisation avec Newtonsoft. Seuls « ia::result » et « ia::meta » gardent un attribut [JsonProperty]. |
-| **Models/Filter.cs** | Helpers pour construire les filtres (Equal, NotEqual, LessThan, GreaterThan, Between, In, Contains, etc.). Les DateTime/DateOnly sont normalisés en `yyyy-MM-dd`. |
-| **Models/FilterExpression.cs** | Combinaison de filtres par index : Ref(0), Ref(1), And(left, right), Or(left, right), Build(filters, expr) pour obtenir la chaîne `"1 and 2"` et valider les indices. |
-| **Models/FilterParameters.cs** | Paramètres optionnels des filtres : CaseSensitiveComparison, IncludePrivate. |
-| **Models/ExportRequest.cs** | Corps interne de l’Export : Query + FileType. |
-| **Models/ExportFileType.cs** | Enum des formats d’export : Pdf, Csv, Word, Xml, Xlsx. |
-| **Models/InvoiceReference.cs** | Modèles pour la liste de factures : `InvoiceReference` (key, id, href), `InvoiceReferenceListResponse` (Result uniquement). |
-| **Models/InvoiceDetail.cs** | Modèles pour le détail d’une facture (en-tête + quelques lignes) : `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. |
-| **Models/Invoice/InvoiceCreate.cs** | Modèle minimal POST facture : `InvoiceCreate`, `IdRef`, `Line`, `LineDimensions` (customer, glAccount, dimensions.* = objets `{ "id": "..." }`). |
-| **Models/Invoice/InvoiceUpdate.cs** | Modèle PATCH facture : `InvoiceUpdate` (referenceNumber, description, dueDate ; camelCase, minimal). |
-| **Models/Invoice/BillLineUpdate.cs** | Modèle minimal PATCH ligne de bill : `BillLineUpdate` (glAccount, txnAmount, memo, dimensions) ; refs avec un seul `id`. Dimensions : department, location. |
-| **Models/Invoice/InvoiceLineUpdate.cs** | Modèle minimal PATCH ligne de facture : `InvoiceLineUpdate` (glAccount, txnAmount, memo, dimensions) ; réutilise `IdRef` de InvoiceCreate. Dimensions : location, customer. |
-| **Models/Bulk/BulkCreateRequest.cs** | Corps de la partie `ia::requestBody` pour le bulk create : objectName, operation, jobFile, fileContentType, callbackURL (optionnel). |
-| **Models/Bulk/BulkCreateResponse.cs** | Réponse du bulk create (201) : ia::result avec jobId. |
-| **Models/Bulk/BulkStatusResponse.cs** | Réponse du bulk status (200) : ia::result avec status, percentComplete. |
-| **Models/Batch/BatchResponse.cs** | Réponse batch (ia::result + ia::meta), statut par élément (`ia::status`) et erreur (`ia::error`) ; inclut `BatchPatchItem` pour PATCH en lot. |
-| **Models/Composite/CompositeSubRequest.cs** | Une sous-requête composite : method, path, body (optionnel), resultReference (optionnel), headers (optionnel). |
-| **Models/Composite/CompositeResponse.cs** | Réponse de POST /services/core/composite : ia::result (tableau), ia::meta (totalCount, totalSuccess, totalError). |
-| **Services/IntacctService.cs** | Client HTTP (RestSharp) : ObtenirToken, RafraichirToken, RevokerToken, Query, Export, GetInvoices, GetInvoiceByKey, CreateInvoice, UpdateInvoice, UpdateInvoiceLine, UpdateBillLine, DeleteInvoice, **BatchGetByKeys / BatchCreate / BatchUpdate / BatchDeleteByKeys** (avec option atomic), **BulkCreate**, **BulkStatus**, **Composite**. Tous les corps JSON sont sérialisés via un helper commun (NullValueHandling.Ignore). |
-| **cloudflare-worker/worker.js** | Démo **Authorization Code** : page d’accueil (redirection Sage) → `/callback` (échange code→token) → `/vendors` (GET fournisseurs avec le token). Code minimal, sans Bulk. Pour déployer : Wrangler (voir dossier). |
+| **Services/IntacctService.cs** | Client HTTP : `ObtenirToken()` et `Query()`. |
+| **Models/Token.cs** | Modèle du token OAuth2 (access_token, expires_in, etc.). |
+| **Models/Query/QueryRequest.cs** | Corps d'une requête Query : object, fields, filters, orderBy, start, size. |
+| **Models/Query/QueryResponse.cs** | Réponse Query : Result (liste de lignes) + Meta (pagination). |
 
 ---
 
-## Parcours du code (flux démo)
+## Flux de l'application
 
-### Étape 1 – Configuration
+### 1. Configuration
 
-La configuration est lue depuis `appsettings.json` (IdClient, SecretClient, Utilisateur). Le **IntacctService** est instancié avec l’URL de base de l’API Intacct et ces trois valeurs.
+La configuration est lue depuis `appsettings.json` (IdClient, SecretClient, Utilisateur).
 
-**À retenir :** ne jamais mettre les secrets dans le code ; toujours les externaliser (fichier config, variables d’environnement).
+### 2. Authentification (OAuth2 Client Credentials)
 
----
+POST vers `oauth2/token` avec `grant_type=client_credentials`. La réponse contient `access_token`, `refresh_token`, `expires_in`.
 
-### Étape 2 – Authentification (OAuth2)
+### 3. Query
 
-Intacct propose **deux flux** OAuth2 :
-
-| Flux | Usage | Ce projet |
-|------|--------|-----------|
-| **Client Credentials** | Application qui s’authentifie elle-même (machine-à-machine). Pas de connexion utilisateur. | **ObtenirToken()** dans l’app .NET : POST `oauth2/token` avec `grant_type=client_credentials`, `client_id`, `client_secret`, `username`. |
-| **Authorization Code** | Un utilisateur se connecte via le navigateur ; l’app reçoit un code puis l’échange contre un token. | Démo dans **cloudflare-worker/worker.js** : redirection vers Sage → callback avec `code` → échange code→token → utilisation du token (ex. GET vendors). |
-
-**Dans l’app .NET (Client Credentials)** : la réponse est désérialisée dans **Token** (Newtonsoft) : `access_token`, `refresh_token`, `expires_in`, puis `DateExpiration` et `EstExpire`. Le token est **passé explicitement** à chaque appel (Query, Export, etc.).
-
-**À retenir :** chaque appel API doit être fait avec un token valide. Rafraîchir le token (RafraichirToken) ou en obtenir un nouveau si nécessaire.
+POST vers `/services/core/query` avec un objet, des champs, et optionnellement des filtres, un tri et une pagination. La réponse contient les résultats (`ia::result`) et les métadonnées (`ia::meta`).
 
 ---
 
-### Étape 3 – Requête Query
-
-Une **Query** permet de lire des données selon un **object** (ex. `accounts-payable/bill`), une liste de **fields**, et éventuellement des **filtres**, un **tri** et une **pagination**.
-
-- **QueryRequest** contient :
-  - **Object** (obligatoire) : nom de l’objet API.
-  - **Fields** (obligatoire) : champs à retourner.
-  - **Filters** (optionnel) : liste de filtres construits avec **Filter** (ex. `Filter.GreaterThan("totalTxnAmount", "100")`, `Filter.Between("postingDate", date1, date2)`). Les dates sont formatées en `yyyy-MM-dd` automatiquement.
-  - **FilterExpression** (optionnel) : chaîne qui combine les filtres par **index 1-based** (ex. `"1 and 2"` = filtre 0 ET filtre 1). On la construit avec **FilterExpression.Ref(0)**, **And**, **Or**, puis **FilterExpression.Build(filters, expr)** pour valider les indices.
-  - **FilterParameters** (optionnel) : sensibilité à la casse, champs privés.
-  - **OrderBy** (optionnel) : liste de paires `{ "champ": "asc" }` ou `"desc"`.
-  - **Start**, **Size** (optionnel) : pagination (premier enregistrement, nombre max 4000).
-
-- **Query(request, accessToken)** envoie un POST vers `/services/core/query` avec le corps JSON et l’en-tête `Authorization: Bearer <token>`.
-
-**À retenir :** l’ordre des filtres dans la liste détermine les numéros utilisés dans FilterExpression (1 = premier filtre, 2 = deuxième, etc.).
-
----
-
-### Étape 4 – Désérialiser la réponse Query
-
-La réponse du endpoint Query contient :
-
-- **"ia::result"** : tableau d’objets (une ligne par enregistrement ; les clés sont les noms des champs).
-- **"ia::meta"** : métadonnées (totalCount, start, pageSize, next, previous).
-
-On utilise **Newtonsoft** : `JsonConvert.DeserializeObject<QueryResponse>(response.Content)`. Ensuite :
-
-- **queryResponse.Result** : `List<Dictionary<string, object>>` — chaque élément est une ligne (champ → valeur).
-- **queryResponse.Meta** : pagination et total.
-
-**À retenir :** le type générique des lignes (dictionnaire) permet de gérer n’importe quel object/fields sans modèle C# spécifique par objet.
-
----
-
-### Étape 5 – Export
-
-L’**Export** réutilise la **même QueryRequest** et ajoute un **format de fichier** (Pdf, Csv, Word, Xml, Xlsx).
-
-- **Export(request, fileType, accessToken)** envoie un POST vers `/services/core/export` avec le corps `{ "query": request, "fileType": "pdf" }` (ou autre format).
-- La réponse est binaire (**RawBytes**). On l’enregistre avec `File.WriteAllBytes(cheminComplet, reponseExport.RawBytes)`.
-
-Dans la démo, le nom du fichier suit le pattern : `object-export-ddMMyyyy-HHmmss.ext` (ex. `accounts-payable-bill-export-30012025-143052.pdf`).
-
-**À retenir :** Query retourne du JSON ; Export retourne un fichier (PDF, CSV, etc.). La structure de la requête (object, fields, filters, etc.) est la même pour les deux.
-
----
-
-## Filtres et FilterExpression (détail)
-
-### Construire un filtre
-
-Chaque filtre est un dictionnaire au format attendu par l’API : `{ "$op": { "champ": valeur } }`. On utilise les méthodes statiques de **Filter** pour ne pas écrire ce JSON à la main :
-
-- Comparaisons : **Equal**, **NotEqual**, **LessThan**, **LessThanOrEqual**, **GreaterThan**, **GreaterThanOrEqual**
-- Plage : **Between**, **NotBetween** (valeur = tableau de 2 éléments)
-- Listes : **In**, **NotIn**
-- Texte : **Contains**, **NotContains**, **StartsWith**, **NotStartsWith**, **EndsWith**, **NotEndsWith**
-
-Vous pouvez passer des **DateTime** ou **DateOnly** directement ; ils sont convertis en `yyyy-MM-dd` dans Filter.
-
-### Combiner les filtres (FilterExpression)
-
-L’API attend une chaîne qui référence les filtres par **index 1-based** et les combine avec `and` / `or`, par ex. `"1 and 2"` ou `"(1 and 2) or 3"`.
-
-- **FilterExpression.Ref(0)** = premier filtre (index 0 en C#, numéroté 1 dans la chaîne).
-- **FilterExpression.And(left, right)** et **Or(left, right)** combinent deux sous-expressions.
-- **FilterExpression.Build(filters, expr)** vérifie que tous les indices utilisés existent dans la liste des filtres, puis retourne la chaîne finale.
-
-Exemple : deux filtres, on veut « filtre 1 ET filtre 2 » → `FilterExpression.Build(filters, FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1)))` → `"1 and 2"`.
-
----
-
-## Exemple complet : construire une Query (comme dans Program.cs)
-
-```csharp
-var queryObject = "accounts-payable/bill";
-var queryFields = new List<string> { "id", "billNumber", "vendor.id", "vendor.name", "postingDate", "totalTxnAmount" };
-
-var queryFilters = new List<Dictionary<string, object>>
-{
-    Filter.GreaterThan("totalTxnAmount", "100"),
-    Filter.Between("postingDate", new DateTime(2025, 1, 1), new DateTime(2025, 1, 31))
-};
-
-var queryFilterExpression = FilterExpression.And(FilterExpression.Ref(0), FilterExpression.Ref(1));
-var queryFilterExpressionString = FilterExpression.Build(queryFilters, queryFilterExpression);
-
-var queryFilterParam = new FilterParameters { CaseSensitiveComparison = false, IncludePrivate = false };
-var querySort = new List<Dictionary<string, string>> { new() { ["totalTxnAmount"] = "desc" } };
-
-var queryRequest = new QueryRequest
-{
-    Object = queryObject,
-    Fields = queryFields,
-    Filters = queryFilters,
-    FilterExpression = queryFilterExpressionString,
-    FilterParameters = queryFilterParam,
-    OrderBy = querySort,
-    Start = 1,
-    Size = 100
-};
-
-var reponseQuery = await intacctService.Query(queryRequest, token.access_token);
-
-if (reponseQuery.IsSuccessful && !string.IsNullOrWhiteSpace(reponseQuery.Content))
-{
-    var queryResponse = JsonConvert.DeserializeObject<QueryResponse>(reponseQuery.Content);
-    if (queryResponse != null)
-    {
-        // queryResponse.Result = lignes, queryResponse.Meta = pagination
-        Console.WriteLine("Résultats : " + queryResponse.Result.Count + " enregistrement(s)");
-        Console.WriteLine("Meta - totalCount : " + queryResponse.Meta.totalCount + ", start : " + queryResponse.Meta.start + ", pageSize : " + queryResponse.Meta.pageSize);
-    }
-}
-```
-
----
-
-## GET factures : liste + détail
-
-En plus de Query / Export, le projet montre deux endpoints **GET** sur l’objet facture (`accounts-receivable/invoice`) :
-
-- **GET liste de factures** : `/objects/accounts-receivable/invoice`
-- **GET détail d’une facture par key** : `/objects/accounts-receivable/invoice/{key}`
-
-Ces endpoints renvoient un schéma **spécifique à l’objet** (ici : facture). Ils sont pratiques pour :
-
-- Vérifier que le token fonctionne.
-- Parcourir rapidement quelques factures existantes.
-- Montrer la différence entre un **endpoint GET orienté ressource** et le **service Query** plus générique.
-
-> ⚠️ **Limites** : la liste de factures n’est pas pensée pour de vraies extractions.
->
->- Pas de paramètres de pagination dans l’URL.
->- Champs retournés limités (clé, id, href).
->- Pour filtrer, paginer et choisir les champs retournés, **Sage recommande d’utiliser Query**.
-
-### Modèles côté C#
-
-- `InvoiceReference`, `InvoiceReferenceListResponse` (fichier `Models/InvoiceReference.cs`) : on ne mappe que `ia::result` (liste de références key, id, href).
-- `InvoiceDetailResponse`, `InvoiceHeader`, `InvoiceLine`, etc. (fichier `Models/InvoiceDetail.cs`) : on ne mappe que `ia::result` (en-tête + lignes). Pas de meta.
-  - En-tête : id, key, invoiceNumber, state, dates, montants, client, devise, et un dictionnaire `CustomFields` pour les champs personnalisés (ex. `nsp::REF_ERP`).
-  - Lignes : compte de résultat, compte client, montants, lieu (dimension location), client (dimension customer), etc., plus un dictionnaire `CustomFields` pour les champs personnalisés de ligne.
-
-On utilise **Newtonsoft.Json** avec des **noms de propriétés C# alignés sur le JSON** (camelCase ou snake_case) pour éviter les attributs ; seuls les clés non valides en C# (ex. `"ia::result"`) gardent `[JsonProperty]`. Les champs personnalisés (ex. `nsp::`) sont exposés via `[JsonExtensionData]`.
-
-### Exemple de flux dans `Program.cs`
-
-Après la démo Query + Export, le programme :
-
-1. Appelle **GetInvoices(token.access_token)** :
-   - Désérialise la réponse dans `InvoiceReferenceListResponse` (Result uniquement).
-   - Liste les 3 premières factures (key, id, href).
-2. Récupère la **clé** (`key`) de la première facture.
-3. Appelle **GetInvoiceByKey(key, token.access_token)** :
-   - Désérialise la réponse dans `InvoiceDetailResponse`.
-   - Affiche un résumé de la facture : numéro, nom du client, dates, montants, devise.
-   - Affiche un extrait de la première ligne : compte comptable, montant, lieu.
-
-Ce flux permet de comparer visuellement :
-
-- **Query** : très générique (n’importe quel object / fields), filtre / tri / pagination, export possible.
-- **GET facture** : schéma spécialisé, pratique pour lire un enregistrement précis ou en parcourir quelques-uns, mais pas pour les extractions avec critères métier.
-
----
-
-## Conventions du projet (patterns)
-
-Pour garder le code cohérent et facile à maintenir :
-
-| Règle | Usage |
-|-------|--------|
-| **Modèles de requête (API)** | **camelCase** (ex. InvoiceUpdate, InvoiceLineUpdate, BillLineUpdate) pour coller au JSON sans attributs. |
-| **Champs optionnels (PATCH)** | Propriétés **nullable** (`string?`) ; les null sont **ignorés globalement** à la sérialisation dans `IntacctService` (helper `SerializeBody` avec `NullValueHandling.Ignore`). |
-| **Modèles de réponse** | Noms de propriétés **alignés sur le JSON** (camelCase/snake_case) ; `[JsonProperty]` uniquement pour les clés non valides en C# (ex. `"ia::result"`). Voir `InvoiceDetail`, `Token`, `QueryResponse`. |
-| **Namespaces** | Un dossier = un sous-namespace : `Models.InvoiceCreate`, `Models.InvoiceUpdate`, `Models.InvoiceLineUpdate`, `Models.BillLineUpdate`, `Models.Query`, `Models.Export`. Modèles partagés (réponses liste/détail) dans `Models` sans sous-dossier. |
-| **Service** | Une méthode par opération (Get, Create, Update, Query, Export). Commentaires XML décrivant l’endpoint et le corps attendu. |
-| **Program.cs** | Un scénario = une méthode `RunXxxAsync`. Messages console explicites (ex. « PATCH invoice - Succès » et non « POST » pour une mise à jour). |
-
----
-
-## POST facture (création)
-
-Le projet permet de **créer une facture** via **POST** `/objects/accounts-receivable/invoice` avec un **modèle minimal** :
-
-- **En-tête** : `customer` (objet `{ "id": "..." }`), `invoiceDate`, `dueDate`.
-- **Lignes** : pour chaque ligne : `txnAmount`, `glAccount` (objet), `dimensions` (customer, location ; optionnels ; les null sont ignorés à la sérialisation par le service).
-
-Les modèles sont dans **Models/Invoice/InvoiceCreate.cs** (`InvoiceCreate`, `IdRef`, `Line`, `LineDimensions`). L’API attend des **objets** `{ "id": "..." }` pour customer, glAccount et chaque dimension.
-
-**CreateInvoice(request, accessToken)** envoie un POST avec le corps JSON et l’en-tête `Authorization: Bearer <token>`. En démo (option 4), on construit un exemple avec client CL0170, dates 2025-12-06 / 2025-12-31, une ligne de 100 avec compte 701000 et dimension client CL0170.
-
----
-
-## PATCH facture (mise à jour)
-
-Le projet permet de **modifier une facture** via **PATCH** `/objects/accounts-receivable/invoice/{key}` avec un **corps partiel** :
-
-- Champs supportés dans **Models/Invoice/InvoiceUpdate.cs** : `referenceNumber`, `description`, `dueDate` (camelCase, minimal).
-
-**UpdateInvoice(request, key, accessToken)** envoie un PATCH avec le corps JSON. En démo (option 5), on met à jour la facture de key exemple « 11 » avec un numéro de référence, une description et une nouvelle date d’échéance.
-
----
-
-## PATCH ligne de bill (bill-line)
-
-Mise à jour d’une **ligne de bill** (comptes fournisseurs) via **PATCH** `/objects/accounts-payable/bill-line/{key}`. La `key` est celle de la ligne.
-
-- **Modèle** : **Models/Invoice/BillLineUpdate.cs** (`BillLineUpdate`, `GlAccountRef`, `BillLineDimensions`, `KeyIdRef`). Références avec un seul identifiant : **id**.
-- **Champs** (tous optionnels) : glAccount (objet `{ "id": "..." }`), txnAmount, memo, dimensions (department, location).
-- **Sérialisation** : comme pour les autres corps JSON du service (Create/Update invoice et lignes), le corps est sérialisé via le helper commun (**Newtonsoft**, `NullValueHandling.Ignore`) puis envoyé en `AddStringBody`, pour n’envoyer que les champs renseignés.
-
-**UpdateBillLine(request, lineKey, accessToken)**. Démo : option **6**.
-
----
-
-## PATCH ligne de facture (invoice-line)
-
-Mise à jour d’une **ligne de facture** (comptes clients) via **PATCH** `/objects/accounts-receivable/invoice-line/{key}`. La `key` est celle de la ligne.
-
-- **Modèle** : **Models/Invoice/InvoiceLineUpdate.cs** (`InvoiceLineUpdate`, `InvoiceLineDimensions` ; réutilise `IdRef` de InvoiceCreate pour glAccount et dimensions).
-- **Champs** (tous optionnels) : glAccount, txnAmount, memo, dimensions (location, customer).
-- **Sérialisation** : comme pour bill-line, corps sérialisé via le helper du service (Newtonsoft, null ignorés) + `AddStringBody`.
-
-**UpdateInvoiceLine(request, lineKey, accessToken)**. Démo : option **7**.
-
----
-
-## DELETE facture
-
-Suppression d’une facture via **DELETE** `/objects/accounts-receivable/invoice/{key}`.
-
-**DeleteInvoice(key, accessToken)**. Démo : option **8**. (Non inclus dans « Tous les scénarios » car destructif.)
-
----
-
-## Batch (GET/POST/PATCH/DELETE sur un même objet)
-
-Le mode **Batch** permet de traiter plusieurs enregistrements d’un **même objet REST** dans un seul appel.
-
-- **BatchGetByKeys(objectPath, keys, accessToken)** : GET `/objects/{app}/{object}/{k1,k2,...}`.
-- **BatchCreate(objectPath, records, accessToken, atomic=false)** : POST tableau JSON vers `/objects/{app}/{object}`.
-- **BatchUpdate(objectPath, recordsWithKey, accessToken, atomic=false)** : PATCH tableau JSON (chaque élément contient `key`) vers `/objects/{app}/{object}`.
-- **BatchDeleteByKeys(objectPath, keys, accessToken, atomic=false)** : DELETE `/objects/{app}/{object}/{k1,k2,...}`.
-- **Atomic mode** : en passant `atomic=true`, le header `X-IA-API-Param-Transaction: true` est envoyé.
-- **Limite** : 500 enregistrements (ou keys) max par requête (guard côté service).
-
-En démo : **option 10** (**RunBatchAsync**) montre POST, GET by keys, PATCH non-atomic, PATCH atomic (échec transactionnel illustré), puis DELETE by keys.
-
----
-
-## Bulk (create + statut)
-
-Le projet permet d’envoyer une **requête bulk** (traitement asynchrone) puis de **vérifier le statut** jusqu’à completion. Les modèles **Models/Bulk/** décrivent la requête et les réponses de façon typée (production-ready).
-
-- **BulkCreate(request, jsonArrayBody, accessToken)** : POST multipart vers `/services/bulk/job/create`. **request** est un `BulkCreateRequest` (objectName, operation, jobFile, fileContentType, callbackURL optionnel) ; **jsonArrayBody** est le contenu du fichier JSON (tableau d'enregistrements). Le corps `ia::requestBody` est sérialisé à partir du modèle. Retourne un **jobId** (désérialiser en `BulkCreateResponse`).
-- **BulkStatus(jobId, accessToken, download = false)** : GET `/services/bulk/job/status?jobId=...` ; avec `download=true` une fois le statut `completed`, retourne le fichier résultat (JSON). Réponse désérialisable en `BulkStatusResponse` (Result.status, Result.percentComplete).
-
-En démo : **option 11** (**RunBulkAsync**) envoie un bulk create (vendors), affiche le **jobId** et indique d’utiliser l’option 12 pour le résultat. **Option 12** (**RunBulkGetResultAsync**) demande un jobId (ex. copié après l’option 11), appelle **BulkStatus** une fois pour le statut (status, percentComplete) puis avec **download=true** pour afficher le fichier résultat. Code minimal pour une démo claire. Le callback URL peut être défini sur `request.callbackURL` pour recevoir la notification en temps réel sur un serveur externe.
-
-
----
-
-## Composite (plusieurs requêtes en un appel)
-
-Le service **Composite** permet d’envoyer plusieurs sous-requêtes (GET, POST, PATCH, DELETE) en un seul POST vers `/services/core/composite`. Chaque sous-requête a un **method**, un **path**, et optionnellement **body** (POST/PATCH), **resultReference** (pour réutiliser le résultat dans un path suivant, ex. `@{maRef.1.key}`), **headers** (ex. Idempotency-Key).
-
-- **Composite(subRequests, accessToken)** : POST `/services/core/composite` avec le corps JSON = tableau de `CompositeSubRequest`. Réponse désérialisable en `CompositeResponse` (Result = un élément par sous-requête, Meta = totalCount, totalSuccess, totalError).
-
-En démo (**option 13**), **RunCompositeAsync** crée **2 factures** en un seul appel : deux sous-requêtes POST avec le même modèle **InvoiceCreate** (customer, invoiceDate, dueDate, lines) que l’option 4 ; affiche totalSuccess et totalError.
-
----
-
-## Démo Authorization Code (Cloudflare Worker)
-
-Pour comprendre le flux **Authorization Code** (connexion d’un utilisateur réel via le navigateur), le dépôt contient un Worker Cloudflare minimal dans **cloudflare-worker/worker.js**.
-
-**Flux en 3 étapes :**
-1. **/** — L’utilisateur clique sur « Se connecter à Sage » ; redirection vers Sage Intacct (authorize).
-2. **/callback** — Sage redirige vers votre URL avec `?code=...`. Le Worker envoie ce code en POST à `oauth2/token` (grant_type=authorization_code, client_id, client_secret, redirect_uri) et obtient `access_token` (et refresh_token). La page affiche le token et un lien « Récupérer les fournisseurs ».
-3. **/vendors** — Le Worker appelle `GET /objects/accounts-payable/vendor` avec l’en-tête `Authorization: Bearer <token>` et affiche la réponse JSON.
-
-**Configuration :** ID_CLIENT et SECRET_CLIENT en variables d’environnement du Worker (ou valeurs par défaut dans le code pour la démo). L’URL de callback est dérivée de l’origine (`/callback`).
-
-**Déploiement :** depuis le dossier `cloudflare-worker`, avec [Wrangler](https://developers.cloudflare.com/workers/wrangler/). En local : `npx wrangler dev`.
-
----
-
-## Pour aller plus loin (non détaillé dans la démo)
-
-- **RafraichirToken(refreshToken)** : obtenir un nouveau token à partir du refresh token (usage commenté dans `Program.cs`).
-- **RevokerToken(accessToken)** : révoquer un token (usage commenté dans `Program.cs`).
-- Changer de **société ou d’entité** : utiliser un token obtenu avec d’autres identifiants ou un autre utilisateur.
-
----
-
-## Dépannage rapide
-
-| Problème | Piste de solution |
-|----------|-------------------|
-| « Erreur lors de l'authentification » | Vérifier IdClient, SecretClient, Utilisateur dans `appsettings.json`. Vérifier que l’utilisateur Web Services est actif dans Intacct. |
-| `appsettings.json` introuvable | Le fichier doit être à la racine du projet (même dossier que le `.csproj`). Il est copié en sortie grâce au `.csproj`. |
-| Query retourne vide ou erreur | Vérifier le nom de l’object (ex. `accounts-payable/bill`) et les noms des champs. Consulter la doc API Intacct pour les objets et champs disponibles. |
-| Export échoue | S’assurer que la QueryRequest est valide (même critères qu’une Query). Vérifier que le format demandé (Pdf, Csv, etc.) est supporté pour cet object. |
+## Dépannage
+
+| Problème | Solution |
+|----------|----------|
+| Erreur d'authentification | Vérifier IdClient, SecretClient, Utilisateur dans `appsettings.json`. |
+| `appsettings.json` introuvable | Le fichier doit être à la racine (même dossier que le `.csproj`). |
+| Query retourne vide | Vérifier le nom de l'objet et des champs dans la doc API Intacct. |
 
 ---
 
 ## Licence
 
-Utilisation libre pour l’équipe et les ateliers. Les conditions d’utilisation de l’API Sage Intacct s’appliquent à l’API elle-même.
+Utilisation libre pour l'équipe et les ateliers.
