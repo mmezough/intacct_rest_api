@@ -1,0 +1,570 @@
+Atelier Sage
+Intacct API REST
+Mohammed MEZOUGH
+13/04/2026
+
+
+
+
+Code et démos :
+https://github.com/mmezough/intacct_rest_api
+
+Collection Postman :
+https://assets.devx.sage.com/assets/intacct/postman/Sage-Intacct-REST-
+API-Postman-Collection.zip
+ Sage Intacct API REST
+L’API REST Sage Intacct permet d’accéder aux données et aux fonctions de Sage Intacct (facturation, achats, trésorerie, etc.) depuis des applications
+externes. Les échanges se font en HTTP/JSON ; l’accès est sécurisé par OAuth 2.0.
+
+
+
+Points clés :
+      •   Authentification : deux flux — Client Credentials (machine-à-machine, token sans utilisateur) et Authorization Code (connexion utilisateur
+          via navigateur).
+      •   Consultation : Query (object, fields, filtres, tri, pagination) et Export (même logique, résultat en PDF, CSV, etc.).
+      •   CRUD sur les objets : GET (liste ou détail), POST (création), PATCH (mise à jour partielle), DELETE (suppression), sur des ressources du type
+          /objects/{application}/{object}.
+      •   Traitement en masse : Bulk (jobs asynchrones : envoi d’un fichier, suivi par jobId, téléchargement du résultat).
+      •   Requêtes groupées : Composite (plusieurs appels GET/POST/PATCH/DELETE en un seul POST).
+
+
+
+
+                                                         © 2024 The Sage Group plc, or its licensors. All rights reserved.                          Page 2
+Sommaire
+1. Authentification & Accès                                                     3. Opérations de Données (CRUD)
+ Setup : Enregistrement App, activation de l’abonnement                             Lecture (GET) : récupération d'un enregistrement unique ou d'une liste.
+ Services Web, autorisation du Sender ID.                                          Création (POST) : ajout d'une nouvelle entrée dans la base.
+ liaison de l'ID Client avec l'Utilisateur du Service Web                          Mise à jour (PATCH) : modification partielle d'un enregistrement existant.
+ (uniquement pour le flux Client Credentials)                                      Suppression (DELETE) : retrait définitif d'une ressource.
+ OAuth 2.0 : Flux Client Credentials et Authorization Code.
+ Token : Gestion de l'accès et du rafraîchissement.                             4. Requêtes groupées et avancées
+ Contexte : Accès global ou par entité.
+                                                                                    Requêtes en lot : Plusieurs enregistrements du même type.
+                                                                                   Requêtes en masse : envoi groupé pour traitement asynchrone.
+2. Consultation (Query Service)
+                                                                                   Requêtes composites : envoi de plusieurs requêtes via un seul POST.
+  Sélection : choix de l'objet, des champs et calculs d'agrégats.
+ Filtrage : application de conditions et de logiques complexes.
+ Tri : organisation des résultats par champ et par ordre.
+ Export : extraction de données aux formats CSV, PDF ou autres.
+
+
+
+
+                                                         © 2024 The Sage Group plc, or its licensors. All rights reserved.                                      Page 3
+1. Authentification & Accès
+ Setup : Enregistrement App 1/2
+Naviguer Site https://developer.sage.com/intacct - Cliquer sur View Console
+Connexion ou création d’un Sage ID, Créer une organisation, S'inscrire au programme Sage Intacct REST API (nécessite un
+Sender ID)
+
+
+
+
+                                               © 2024 The Sage Group plc, or its licensors. All rights reserved.          Page 5
+ Setup : Enregistrement App 2/2
+Créer une application Sage Intacct, Renseigner les URLs de redirection (Redirect URIs), le mot de passe de Sender ID (Intacct Web
+Services License Password) et le scope client.
+
+
+
+
+                                                 © 2024 The Sage Group plc, or its licensors. All rights reserved.              Page 6
+ Setup : Activer l’abonnement Services Web
+Pour activer l’abonnement Services Web :
+     1. Menu Société – Admin – Abonnements
+     2. Activer l’abonnement Services Web
+
+
+
+
+                                             © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 7
+ Setup : Autorisation du Sender ID
+Pour autoriser le Sender ID à accéder à l’instance Intacct :
+     1. Menu Société – Configuration – Société – onglet Sécurité – Autorisation des services web
+     2. Cliquer sur Ajouter et renseigner le Sender ID et une description si nécessaire
+
+
+
+
+                                                 © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 8
+ Setup : Création du compte service Web
+Pour créer un utilisateur de type services web :
+     1. Menu Société – Admin – Utilisateurs des services web
+     2. Cliquer sur Ajouter et renseigner l’ID utilisateur, Adresse e-mail du compte et un Nom du contact
+
+
+
+
+- Pour des raisons de sécurité, l'utilisateur de type services web
+ne pourra pas accéder à l'interface Sage Intacct comme les autres
+utilisateurs, l'accès se fait uniquement via les services web
+
+- Il est possible d'utiliser un utilisateur normal pour faire des
+appels API mais il est déconseillé en production.
+
+
+
+                                                   © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 9
+ Setup : Autorisation de l’ID Client
+Pour autoriser l’ID Client créé dans l’étape précédente et l’associer à un utilisateur service web :
+     1. Menu Société – Configuration – Société – onglet Sécurité – Applications clients autorisées
+     2. Cliquer sur Ajouter et renseigner l’ID Client et l’ID de l’utilisateur webservice créé précédemment.
+
+
+
+
+                                                  © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 10
+  OAuth 2.0 : Flux Client Credentials (Machine à
+  machine)
+- Le flux Client Credentials est utilisé pour un accès direct à l'API sans intervention de l'utilisateur.
+- Pour l'utiliser, l’ID Client doit être autorisé et lié à un utilisateur Web Services dans la configuration de société.
+
+
+- Pour demander un token, envoyez une requête POST au point de terminaison suivant avec les paramètres requis, incluant le username
+- Format username UTILISATEUR_WEB_SERVICES@ID_SOCIÉTÉ|ENTITÉ pour cibler une entité précise, ou omettez l'entité pour un accès global au
+niveau général (Top Level).
+
+
+
+
+                                                                                                            token_type : Type de jeton (Bearer).
+                                                                                                            access_token : Clé d'accès API.
+                                                                                                            refresh_token : Jeton de renouvellement.
+                                                                                                            expires_in : Durée de validité (6h).
+
+
+                                                           © 2024 The Sage Group plc, or its licensors. All rights reserved.                           Page 11
+ OAuth 2.0 : Flux Client Credentials – Exemple C#
+1. Classe IntacctService
+Encapsule les appels API. Champs : RestClient, _idClient,
+_secretClient, _utilisateur.
+
+
+2. Constructeur
+Reçoit urlBase + identifiants. Crée le RestClient, stocke les
+paramètres (ex. depuis appsettings.json).
+
+
+3. ObtenirToken()
+POST oauth2/token avec grant_type, client_id, client_secret,
+username. Retourne RestResponse → à désérialiser en Token
+dans Program.cs.
+
+
+
+
+                                                         © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 12
+  OAuth 2.0 : Flux Authorization code
+ Quand un utilisateur réel doit se connecter à Intacct via votre application (navigateur, app mobile), on utilise le flux Authorization Code : l’utilisateur
+ s’identifie une fois sur Sage Intacct, accepte d’autoriser votre app, et vous recevez un code à usage unique pour obtenir un token à son nom. Les appels
+ API sont donc faits pour ce compte utilisateur, et non pour un compte webservice « machine » comme en Client Credentials.
+
+
+Étape 1 : Demande d’autorisation (côté navigateur)                                      Étape 2 : Échange code → token (côté serveur)
+Votre application redirige l’utilisateur vers la page de connexion                      Votre serveur reçoit l’URL de retour avec ?code=... (envoyée par
+Sage Intacct. Une fois connecté et après avoir accepté les accès, Sage                  Sage à l’étape 1). Il envoie ce code en POST à l’endpoint
+redirige l’utilisateur vers votre URL de callback avec un paramètre                     oauth2/token avec client_id, client_secret et
+code (à usage unique, courte durée).                                                    grant_type=authorization_code pour obtenir access_token et
+                                                                                        refresh_token.
+
+
+
+
+                                                          © 2024 The Sage Group plc, or its licensors. All rights reserved.                                Page 13
+Consultation des données
+    (Query Service)
+ Service de Modèle (Model Service)
+Utilisez le service Model pour obtenir les détails d'une ressource (champs interrogeables, types de données, valeurs autorisées et
+relations), éléments utilisables dans vos requêtes pour tous les types d'objets, services et flux de travail.
+
+
+Points d'entrée (Endpoints) disponibles :
+      •   Résumé global : /services/core/model (Affiche toutes les ressources de la version actuelle).
+      •   Ressource spécifique : /services/core/model?name=company-config/department (Modèle complet pour un objet précis).
+      •   Version spécifique : /services/core/model?name=projects/task&version=v1 (Modèle complet selon une version d'API).
+      •   Par type et version : /services/core/model?version=v1&schema=true&type=workflow (Toutes les ressources d'un type précis).
+
+
+
+
+                                                       © 2024 The Sage Group plc, or its licensors. All rights reserved.              Page 15
+ Le Service Query : Structure d'une Requête 1/3
+Le service Query permet d'extraire des données précises en définissant la structure de la
+réponse et les critères de sélection.
+Définition de la Cible et des Champs
+1.   Endpoint : /services/core/query
+2.   Objet (object) : Type d'objet à interroger (ex: accounts-payable/vendor).
+     Pour les objets personnalisés, utilisez le format platform-apps/nsp::<name>.
+3.   Champs (fields) : Liste des champs à retourner.Simples : id, name. Liés : vendor.id (accès aux objets
+     parents).
+4.   Agrégats : sum:amount, count:id, min, max, avg.
+
+
+
+
+                                                        © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 16
+ Le Service Query : Structure d'une Requête 2/3
+Filtrage Avancé (filters, filterExpression et filterParameters)
+1. Opérateurs de comparaison : $eq (égal), $ne (différent), $lt / $gt
+    (inférieur/supérieur), $in, $between, $startsWith, $contains.
+2. Logique complexe : Utilisez filterExpression pour combiner les filtres (ex: (1 and 2) or
+    3).
+3. Sensibilité à la casse : Activée par défaut (caseSensitiveComparison: true).
+
+
+
+
+                                                   © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 17
+ Le Service Query : Structure d'une Requête 3/3
+3. Paramètres de Résultat et Pagination
+1. Tri (orderBy) : Spécifiez l'ordre des résultats en listant les noms des champs suivis de la direction (asc pour croissant ou desc
+    pour décroissant).
+2. Pagination :
+     •   start : Premier enregistrement à inclure.
+     •   size : Nombre d'enregistrements (Maximum 4000).
+
+
+
+
+                                                © 2024 The Sage Group plc, or its licensors. All rights reserved.                Page 18
+Le Service Query : Exemple Postman et C#
+
+
+
+
+                  © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 19
+    Le Service Export
+Le service Export utilise la même logique que le service Query avec deux modifications principales :
+•   Endpoint : /services/core/export
+•   Structure JSON : On ajoute le champ fileType à la racine et on place l'ancienne requête dans l'objet query.
+•   Formats disponibles (fileType) : csv, xlsx, xml, pdf, word.
+
+
+
+
+                                                  © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 20
+Le Service Export : Exemple Postman et C#
+
+
+
+
+                  © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 21
+Opérations de Données
+       (CRUD)
+ Lecture (GET) 1/3
+La méthode GET permet de consulter les ressources existantes, soit en collection, soit par enregistrement spécifique.
+Récupération de Données (GET)
+      •   Format d'Endpoint : Utilise la structure /objects/{application}/{object} (ex: accounts-receivable/invoice).
+      •   List (Collection) : Retourne une liste simplifiée (clés, IDs, liens) de tous les enregistrements pour l'exploration ou les tests.
+      •   Get Single (Détails) : Extrait l'intégralité des champs d'une ressource spécifique en ajoutant sa clé unique à l'URL : /{object}/{key}.
+      •   Métadonnées (ia::meta) : Présentes pour confirmer le succès (totalCount) et gérer la pagination (next, previous) dans le cas des listes.
+      •   Contenu de Réponse : Fournit un tableau de références pour les listes ou l'objet complet détaillé pour une lecture individuelle.
+      •   PS (Important) : Le mode List comporte une limitation majeure car il ne supporte pas les paramètres de pagination ou de filtrage (ex: start),
+          l'utilisation du Query Service est impérative.
+
+
+
+
+              Récupérer la liste des factures
+
+
+
+
+                                                           © 2024 The Sage Group plc, or its licensors. All rights reserved.                         Page 23
+Lecture (GET) 2/3 : Exemple Postman
+
+
+
+
+   Récupérer le détail d’une facture
+
+
+
+
+                                       © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 24
+Lecture (GET) 3/3 : Exemple C#
+   Modèle pour le détail d’une facture                                                 Méthode GetInvoiceByKey dans ServiceIntacct
+
+
+
+
+                                                                                                       Récupérer la facture
+
+
+
+
+                                         © 2024 The Sage Group plc, or its licensors. All rights reserved.                           Page 25
+ Création de Données (POST) 1/2
+La méthode POST permet de soumettre un nouvel enregistrement vers une ressource spécifique pour l'ajouter à la base de données.
+     •   Format d'Endpoint : Utilise la structure racine de l'objet /objects/{application}/{object}.
+     •   Corps de la Requête (Body) : Nécessite un format JSON incluant les champs obligatoires, tels que les dates, les montants et les objets liés (ex:
+         customer).
+     •   Réponse de Succès (201) : Le serveur retourne l'objet ia::result contenant uniquement les informations d'identification et de navigation :
+         l'ID, la Key système et le lien HREF vers la nouvelle ressource.
+
+
+
+
+                                      POST {baseUrl}/objects/accounts-receivable/invoice
+
+
+
+
+                                                        © 2024 The Sage Group plc, or its licensors. All rights reserved.                          Page 26
+Création de Données (POST) 2/2 : Exemple C#
+
+      Modèle InvoiceCreate                                                  Méthode InvoiceCreate dans IntacctService
+
+
+
+
+                                                                                                 Créer une facture
+
+
+
+
+                             © 2024 The Sage Group plc, or its licensors. All rights reserved.                          Page 27
+ Mise à jour de Données (PATCH) 1/3
+La méthode PATCH permet de mettre à jour partiellement un enregistrement existant identifié par sa clé, sans remplacer l’intégralité de la ressource.
+      •   Format d'Endpoint : Utilise la structure racine de l’objet avec la clé : /objects/{application}/{object}/{key} (méthode PATCH).
+      •   Corps de la Requête (Body) : Format JSON partiel contenant uniquement les champs à modifier ; les propriétés absentes sont ignorées et ne
+          modifient pas les valeurs existantes.
+      •   Réponse de Succès (200) : Le serveur retourne l’objet ia::result contenant les données mises à jour ou une confirmation de l’opération.
+
+
+
+
+                                           PATCH {baseUrl}/objects/accounts-receivable/invoice/32
+
+
+
+
+                                                       © 2024 The Sage Group plc, or its licensors. All rights reserved.                            Page 28
+Mise à jour de Données (PATCH) 2/3 : Exemple C#
+                                                               Méthode UpdateInvoice dans IntacctService
+
+
+
+
+   Modèle InvoiceUpdate
+
+
+
+
+                                                                                          Modifier une facture
+
+
+
+
+                          © 2024 The Sage Group plc, or its licensors. All rights reserved.                      Page 29
+Mise à jour de Données (PATCH) 3/3 : Exemple C#
+                                                 Méthode UpdateInvoiceLine dans IntacctService
+
+
+
+
+   Modèle InvoiceLineUpdate
+
+
+
+
+                                                                                        Modifier une ligne facture
+
+
+
+
+                              © 2024 The Sage Group plc, or its licensors. All rights reserved.                      Page 30
+ Suppression de Données (DELETE)
+La méthode DELETE permet de supprimer définitivement un enregistrement identifié par sa clé.
+     •   Format d'Endpoint : Utilise la structure avec clé : /objects/{application} /{object}/{key} (méthode DELETE).
+     •   Corps de la Requête (Body) : Aucun corps requis pour les requêtes DELETE.
+     •   Réponse de Succès (204) : Le serveur confirme la suppression par une réponse vide et code 204
+
+
+
+               Supprimer une facture dans Postman
+
+
+
+
+                            Supprimer une facture C#
+
+
+
+
+                                                                                              Méthode DeleteInvoice dans IntacctService
+
+
+
+
+                                                     © 2024 The Sage Group plc, or its licensors. All rights reserved.                    Page 31
+Requêtes en masse et Requêtes
+         composites
+ Requêtes en lot (Batch)
+Permet de traiter plusieurs enregistrements d'un même type d'objet en un seul appel. Le traitement est synchrone (réponse immédiate) et limité à
+500 enregistrements.
+Format d’endpoint
+      •   Lecture : GET /objects/{object}/194,195,310
+      •   Suppression : DELETE /objects/{application}/{object}/1,2,3 (IDs séparés par des virgules dans l'URL)
+      •   Création/Modification : POST ou PATCH /objects/{application}/{object}
+Corps de la requête (Body, Utilisé uniquement pour POST et PATCH)
+      •   Format : Tableau d'objets JSON [ { ... }, { ... } ].
+      •   Spécificité PATCH : La key doit être incluse dans chaque objet du body (et non dans l'URL).
+
+
+Gestion Atomique (Header) : X-IA-API-Param-Transaction: true
+Si un seul élément échoue, toute l'opération est annulée (Rollback).
+Réponse de succès (200 / 204 / 207)204 No Content pour un DELETE groupé réussi.207 Multi-Status si le résultat est mixte (succès/échecs partiels).
+
+
+
+
+                                                                 © 2024 The Sage Group plc, or its licensors. All rights reserved.            Page 33
+Requêtes en lot (Batch) – Exemple Postman
+        GET Batch
+                                                                                          PATCH Batch
+
+
+
+       DELETE Batch
+
+
+
+
+       POST Batch
+
+
+
+
+                      © 2024 The Sage Group plc, or its licensors. All rights reserved.                 Page 34
+ Requêtes en masse (Bulk) - soumission du job
+Le service Bulk permet de soumettre une opération en masse (create, update, etc.) de façon asynchrone. L’API enregistre le job et retourne un
+identifiant (jobId) à utiliser pour suivre le traitement.
+      •   Format d’endpoint : POST /services/bulk/job/create (requête multipart).
+      •   Corps de la requête (Body) : Requête en form-data (multipart), avec deux parties :
+            1.   ia::requestBody (type Texte) : un objet JSON contenant objectName, operation, jobFile, fileContentType, et optionnellement
+                 callbackURL. La valeur de jobFile doit être le même nom que la deuxième clé.
+            2.   file, type Fichier : un fichier .json contenant un tableau d’enregistrements à traiter (ex. [{ "id": "vendor1", "name": "..." }, ...]).
+      •   Réponse de succès (201) : Le serveur retourne ia::result contenant le jobId, utilisé ensuite pour interroger le statut et, une fois terminé,
+          télécharger le résultat.
+
+
+
+
+                                                            © 2024 The Sage Group plc, or its licensors. All rights reserved.                              Page 35
+Bulk - soumission du job : Exemple Postman
+                 Créer un bulk
+
+
+
+
+                                                                                       Réponse de la création
+
+
+
+
+                   © 2024 The Sage Group plc, or its licensors. All rights reserved.                            Page 36
+Bulk - soumission du job : Exemple C#
+  Modèle Créer un Bulk                                               Méthode BulkCreate dans IntacctService
+
+
+
+
+                                                                                                      Créer un Bulk
+
+
+
+    Modèle Résultat de création
+
+
+
+
+                                  © 2024 The Sage Group plc, or its licensors. All rights reserved.                   Page 37
+ Requêtes en masse (Bulk) – statut et téléchargement
+Une fois le job soumis, le statut s’obtient par un GET sur l’endpoint de statut. Quand le job est terminé, le même endpoint permet de télécharger le
+fichier résultat en passant le paramètre download=true.
+      •   Format d’endpoint : GET /services/bulk/job/status avec les paramètres de requête jobId (obligatoire) et download (optionnel, à true pour
+          récupérer le fichier résultat).
+      •   Corps de la requête (Body) : Aucun. Les requêtes GET n’ont pas de corps.
+      •   Réponse de succès (200) : Le serveur retourne ia::result avec le statut du job (ex. status, percentComplete). Si download=true et que le job
+          est terminé, la réponse contient le fichier résultat (contenu ou pièce jointe selon l’API).
+
+
+
+
+                                                         © 2024 The Sage Group plc, or its licensors. All rights reserved.                         Page 38
+Bulk – statut et téléchargement : Exemple C#
+                                                                           Méthode BulkStatus dans IntacctService
+
+
+
+
+    Modèle Réponse de statut
+
+
+
+
+                                                                                       Lancer la vérification du statut
+
+
+
+
+                               © 2024 The Sage Group plc, or its licensors. All rights reserved.                          Page 39
+ Composite – Envoi de plusieurs requêtes en un seul
+ appel
+Le service Composite permet d’envoyer plusieurs requêtes (GET, POST, PATCH, DELETE) en un seul appel HTTP.
+L’API exécute les sous-requêtes dans l’ordre et renvoie un tableau de réponses (une par sous-requête). Une sous-requête peut exposer un
+resultReference pour que les suivantes utilisent son résultat.
+      •   Format d’endpoint : POST /services/core/composite (corps JSON = tableau de sous-requêtes).
+      •   Corps de la requête (Body) : Un tableau JSON. Chaque élément contient : method (GET, POST, PATCH, DELETE), path (chemin de la
+          ressource, ex. /objects/accounts-payable/vendor), et optionnellement body (pour POST/PATCH), resultReference (identifiant pour
+          réutiliser le résultat), headers (ex. Idempotency-Key).
+      •   Réponse de succès (200) : Le serveur retourne ia::result (tableau : une entrée par sous-requête, chacune avec ia::result, ia::meta, ia::status)
+          et ia::meta global (totalCount, totalSuccess, totalError).
+
+
+
+
+                                                         © 2024 The Sage Group plc, or its licensors. All rights reserved.                          Page 40
+Composite – Exemple Postman
+
+
+
+
+                   {baseUrl}/services/core/composite
+
+
+
+
+                © 2024 The Sage Group plc, or its licensors. All rights reserved.   Page 41
+Composite – Exemple C#
+           Envoyer un Composite                                                                  Modèle CompositeSubRequest
+
+
+
+
+                                                                            Méthode Composite dans IntacctService
+
+
+
+
+                           © 2024 The Sage Group plc, or its licensors. All rights reserved.                                  Page 42
+ Références
+Dépôt Github Code et Démo https://github.com/mmezough/intacct_rest_api
+
+Documentation API https://developer.sage.com/intacct/docs/1/sage-intacct-rest-api/get-started
+
+Authentification OAuth2 https://developer.sage.com/intacct/docs/1/sage-intacct-rest-api/authorization-and-security/oauth2
+
+Référence API https://developer.sage.com/intacct/apis/intacct/1/intacct-openapi
+
+Collection Postman https://assets.devx.sage.com/assets/intacct/postman/Sage-Intacct-REST-API-Postman-Collection.zip
+
+
+
+
+                                             © 2024 The Sage Group plc, or its licensors. All rights reserved.              Page 43
+Merci
+

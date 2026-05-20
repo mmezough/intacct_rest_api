@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atelier Sage — Intacct API REST</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+
+        <section>
+          <div class="slide-inner slide-inner--cover">
+            <div class="cover-main">
+              <p class="cover-eyebrow">Atelier Sage</p>
+              <div class="cover-bar"></div>
+              <h1 class="cover-title">Intacct API REST</h1>
+              <p class="cover-author">Mohammed MEZOUGH</p>
+              <p class="cover-date">13 avril 2026</p>
+              <p class="cover-links">
+                <a href="https://github.com/mmezough/intacct_rest_api" target="_blank">Code et démos</a>
+                <span aria-hidden="true">·</span>
+                <a href="https://assets.devx.sage.com/assets/intacct/postman/Sage-Intacct-REST-API-Postman-Collection.zip" target="_blank">Collection Postman</a>
+              </p>
+            </div>
+            <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+          </div>
+        </section>
+
+        <section>
+          <div class="slide-inner slide-inner--content">
+            <h2 class="page-title">Vue d'ensemble</h2>
+            <p class="overview-intro">
+              Sage Intacct propose une <strong>API REST</strong> pour connecter vos applications
+              à ses <strong>données</strong>, <strong>fonctions</strong> et <strong>flux de travail</strong>.
+            </p>
+            <p class="overview-intro">
+              Vos appels passent par <strong>HTTP</strong>, les payloads sont en <strong>JSON</strong>,
+              et l'accès est protégé par <strong>OAuth 2.0</strong>.
+            </p>
+            <p class="overview-subtitle">Ce qu'on verra aujourd'hui :</p>
+            <ul class="overview-list">
+              <li><strong>Configuration</strong> · portail développeur &amp; société Intacct</li>
+              <li><strong>Authentification</strong> · Client Credentials &amp; Authorization Code</li>
+              <li><strong>Lecture des données</strong> · Model, Query, Export</li>
+              <li><strong>CRUD</strong> · GET, POST, PATCH, DELETE</li>
+              <li><strong>Requêtes avancées</strong> · Batch, Bulk, Composite</li>
+            </ul>
+            <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+          </div>
+        </section>
+
+        <section>
+          <div class="slide-inner slide-inner--content">
+            <h2 class="page-title">Sommaire</h2>
+            <div class="sommaire-grid">
+              <div class="sommaire-col">
+                <div class="sommaire-section">
+                  <div class="sommaire-heading">
+                    <span class="sommaire-num">1</span>
+                    <h3>Configuration</h3>
+                  </div>
+                  <ul>
+                    <li>Portail développeur · application &amp; Sender ID</li>
+                    <li>Société Intacct · abonnement Web Services</li>
+                    <li>Autorisations · Sender ID, utilisateur WS, ID client</li>
+                  </ul>
+                </div>
+                <div class="sommaire-section">
+                  <div class="sommaire-heading">
+                    <span class="sommaire-num">2</span>
+                    <h3>Authentification</h3>
+                  </div>
+                  <ul>
+                    <li>Client Credentials · machine à machine</li>
+                    <li>Authorization Code · connexion utilisateur</li>
+                    <li>Top level &amp; entité · header, refresh, périmètre jeton</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="sommaire-col">
+                <div class="sommaire-section">
+                  <div class="sommaire-heading">
+                    <span class="sommaire-num">3</span>
+                    <h3>Lecture des données</h3>
+                  </div>
+                  <ul>
+                    <li>Model · schéma des objets</li>
+                    <li>Query · champs, filtres, pagination</li>
+                    <li>Export · CSV, PDF</li>
+                  </ul>
+                </div>
+                <div class="sommaire-section">
+                  <div class="sommaire-heading">
+                    <span class="sommaire-num">4</span>
+                    <h3>CRUD</h3>
+                  </div>
+                  <ul>
+                    <li>GET · lecture liste &amp; détail</li>
+                    <li>POST &amp; PATCH · création &amp; modification</li>
+                    <li>DELETE · suppression</li>
+                  </ul>
+                </div>
+                <div class="sommaire-section">
+                  <div class="sommaire-heading">
+                    <span class="sommaire-num">5</span>
+                    <h3>Requêtes avancées</h3>
+                  </div>
+                  <ul>
+                    <li>Batch · lot synchrone</li>
+                    <li>Bulk · job asynchrone</li>
+                    <li>Composite · multi-requêtes</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+          </div>
+        </section>
+
+        <!-- Chapitre 1 · Configuration (navigation verticale ↕) -->
+        <section>
+          <section>
+            <div class="slide-inner slide-inner--chapter">
+              <span class="chapter-num">1</span>
+              <h2 class="chapter-title">Configuration</h2>
+              <p class="chapter-subtitle">Portail développeur · société Intacct</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Configuration · Portail développeur</h2>
+              <ol class="step-list">
+                <li>Ouvrir <a href="https://developer.sage.com/intacct" target="_blank">developer.sage.com/intacct</a> et cliquer sur <strong>View Console</strong>.</li>
+                <li>Se connecter avec un <strong>Sage ID</strong>, créer une <strong>organisation</strong>, puis s'inscrire au programme <strong>Sage Intacct REST API</strong> <span class="text-muted">(Sender ID requis)</span>.</li>
+                <li>Créer une <strong>application</strong> et noter le <strong>Client ID</strong> et le <strong>Client Secret</strong>.</li>
+                <li>Renseigner les <strong>Redirect URIs</strong>, le <strong>scope</strong>, et le mot de passe <strong>Sender ID</strong> <span class="text-muted">(Web Services License Password)</span>.</li>
+              </ol>
+              <p class="keep-box"><strong>À conserver :</strong> Client ID · Client Secret</p>
+              <p class="screenshot-hint">Capture · console développeur &amp; création d'application</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Configuration · Société Intacct</h2>
+              <ol class="step-list">
+                <li>Aller dans <strong>Société · Admin · Abonnements</strong> et activer l'abonnement <strong>Services Web</strong>.</li>
+                <li>Aller dans <strong>Société · Configuration · Société · Sécurité · Autorisation des services web</strong>, cliquer <strong>Ajouter</strong> et renseigner le <strong>Sender ID</strong>.</li>
+              </ol>
+              <p class="screenshot-hint">Capture · abonnements &amp; autorisation Sender ID</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Configuration · Société Intacct <span class="text-muted">(suite)</span></h2>
+              <ol class="step-list">
+                <li>Aller dans <strong>Société · Admin · Utilisateurs des services web</strong>, cliquer <strong>Ajouter</strong> et créer le compte <span class="text-muted">(ID, e-mail, nom du contact)</span>.</li>
+                <li>Aller dans <strong>Société · Configuration · Société · Sécurité · Applications clients autorisées</strong>, lier l'<strong>ID client</strong> et l'<strong>utilisateur Web Services</strong>.</li>
+              </ol>
+              <p class="callout">L'utilisateur WS n'accède pas à l'UI Intacct. Éviter un utilisateur « normal » en production.</p>
+              <p class="screenshot-hint">Capture · utilisateur WS &amp; application client autorisée</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+        </section>
+
+        <!-- Chapitre 2 · Authentification (navigation verticale ↕) -->
+        <section>
+          <section>
+            <div class="slide-inner slide-inner--chapter">
+              <span class="chapter-num">2</span>
+              <h2 class="chapter-title">Authentification</h2>
+              <p class="chapter-subtitle">OAuth 2.0 · Client Credentials &amp; Authorization Code</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Authentification · Client Credentials</h2>
+              <p class="slide-lead">Ce flux sert aux accès <strong>machine à machine</strong>, sans interaction utilisateur.</p>
+              <p class="overview-subtitle">Obtenir un jeton</p>
+              <p class="slide-lead">Envoyer une requête <strong>POST</strong> vers <code class="inline-code">oauth2/token</code> avec un corps <strong>form-urlencoded</strong>.</p>
+              <ol class="step-list">
+                <li>Renseigner <strong>grant_type</strong> avec la valeur <code class="inline-code">client_credentials</code>.</li>
+                <li>Ajouter le <strong>client_id</strong> et le <strong>client_secret</strong> de l'application.</li>
+                <li>Indiquer <strong>username</strong> au format <code class="inline-code">webservice@company</code> ou <code class="inline-code">webservice@company|entity</code>.</li>
+              </ol>
+              <p class="keep-box"><strong>À retenir :</strong> l'ID client doit être lié à un utilisateur Web Services <span class="text-muted">(voir ch. 1)</span>. La réponse contient un <strong>access_token</strong> et un <strong>refresh_token</strong>, valides environ 6 heures.</p>
+              <p class="keep-box"><strong>Note :</strong> le suffixe <code class="inline-code">|entity</code> est optionnel. Vous choisissez le périmètre du jeton à la demande : top level ou entité uniquement.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Authentification · Client Credentials · Exemple</h2>
+              <p class="slide-lead text-muted">Dans Postman, exécuter la requête <strong>Get Token (Client Credentials)</strong>.</p>
+              <div class="slide-two-col">
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">POST</span> /oauth2/token</p>
+                  <p class="code-label">Corps</p>
+                  <pre class="code-block"><code class="language-json">{
+  "grant_type": "client_credentials",
+  "client_id": "xxx.app.sage.com",
+  "client_secret": "••••••",
+  "username": "webservice@company|entity"
+}</code></pre>
+                </div>
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">200</span> OK</p>
+                  <p class="code-label">Réponse</p>
+                  <pre class="code-block"><code class="language-json">{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "Bearer",
+  "expires_in": 21600
+}</code></pre>
+                </div>
+              </div>
+              <p class="keep-box"><strong>Note :</strong> omettez <code class="inline-code">|entity</code> dans <strong>username</strong> pour obtenir un jeton au niveau top level.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Authentification · Authorization Code</h2>
+              <p class="slide-lead">Ce flux sert lorsqu'un <strong>utilisateur réel</strong> se connecte via votre application <span class="text-muted">(navigateur, mobile)</span>. Les appels API sont exécutés <strong>à son nom</strong>, et non via un compte Web Services.</p>
+              <p class="overview-subtitle">Flux en 2 étapes</p>
+              <ol class="step-list">
+                <li>Dans le <strong>navigateur</strong>, rediriger l'utilisateur vers <strong>GET</strong> <code class="inline-code">oauth2/authorize</code> avec les paramètres requis en query string. Sage Intacct renvoie un <strong>code</strong> d'autorisation.</li>
+                <li>Côté <strong>serveur</strong>, échanger ce code via <strong>POST</strong> <code class="inline-code">oauth2/token</code> <span class="text-muted">(corps form-urlencoded)</span> pour récupérer les jetons.</li>
+              </ol>
+              <p class="keep-box"><strong>À retenir :</strong> le code est à usage unique. La <strong>Redirect URI</strong> doit correspondre à celle déclarée dans le portail. Le <strong>client_secret</strong> ne doit jamais transiter côté navigateur.</p>
+              <p class="keep-box"><strong>Note :</strong> il n'y a pas de suffixe <code class="inline-code">|entity</code> dans ce flux. Le jeton est émis au niveau <strong>top level</strong>, ou sur l'<strong>entité par défaut</strong> de l'utilisateur si elle est définie dans Intacct.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Authentification · Authorization Code · Exemple · Étape 1</h2>
+              <p class="slide-lead text-muted">Étape navigateur : construire l'URL d'autorisation avec les paramètres en query string.</p>
+              <div class="slide-two-col">
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">GET</span> /oauth2/authorize</p>
+                  <p class="code-label">Paramètres URL</p>
+                  <pre class="code-block"><code class="language-text">?response_type=code
+&amp;client_id=xxx.app.sage.com
+&amp;redirect_uri=https://app.example/callback
+&amp;scope=offline_access</code></pre>
+                </div>
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">302</span> Redirect</p>
+                  <p class="code-label">Réponse · callback</p>
+                  <pre class="code-block"><code class="language-text">https://app.example/callback
+  ?code=AUTH_CODE_HERE</code></pre>
+                </div>
+              </div>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Authentification · Authorization Code · Exemple · Étape 2</h2>
+              <p class="slide-lead text-muted">Étape serveur : dans Postman, exécuter <strong>Get Token (Authorization Code)</strong> avec un corps form-urlencoded.</p>
+              <div class="slide-two-col">
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">POST</span> /oauth2/token</p>
+                  <p class="code-label">Corps</p>
+                  <pre class="code-block"><code class="language-json">{
+  "grant_type": "authorization_code",
+  "client_id": "xxx.app.sage.com",
+  "client_secret": "••••••",
+  "code": "AUTH_CODE_HERE",
+  "redirect_uri": "https://app.example/callback"
+}</code></pre>
+                </div>
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">200</span> OK</p>
+                  <p class="code-label">Réponse</p>
+                  <pre class="code-block"><code class="language-json">{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "Bearer",
+  "expires_in": 21600
+}</code></pre>
+                </div>
+              </div>
+              <p class="keep-box"><strong>Démo :</strong> voir la branche <code class="inline-code">lesson-auth-code-worker</code> <span class="text-muted">(Worker Cloudflare)</span>.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Authentification · Top level et entité</h2>
+              <p class="slide-lead">Dans une société <strong>multi-entités</strong>, le jeton fixe un contexte d'accès. Selon le flux utilisé, deux approches permettent de cibler les enregistrements d'une sous-entité.</p>
+              <p class="overview-subtitle">Cibler une sous-entité</p>
+              <ol class="step-list">
+                <li>Conserver un jeton <strong>top level</strong> et ajouter le header <code class="inline-code">X-IA-API-Param-Entity</code> à chaque requête API, avec l'ID entité <span class="text-muted">(propriété <code class="inline-code">company-config/entity.id</code>, ex. <code class="inline-code">CentralUS-35</code>)</span>.</li>
+                <li>Ou obtenir un jeton limité à l'entité dès le départ : suffixe <code class="inline-code">|entity</code> dans <strong>username</strong> <span class="text-muted">(Client Credentials)</span>, ou paramètre <strong>location_id</strong> lors d'un <strong>POST</strong> <code class="inline-code">oauth2/token</code> avec <code class="inline-code">grant_type=refresh_token</code>.</li>
+              </ol>
+              <p class="keep-box"><strong>À retenir :</strong> avec Client Credentials, vous choisissez le périmètre à l'émission du jeton. Avec Authorization Code, le jeton est top level ou entité par défaut de l'utilisateur — le header permet ensuite de cibler une autre entité si le jeton est top level.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Authentification · Top level et entité · Exemple</h2>
+              <p class="slide-lead text-muted">Jeton top level · cibler une entité par header ou par refresh.</p>
+              <div class="slide-two-col">
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">GET</span> /objects/vendor</p>
+                  <p class="code-label">Header · requête API</p>
+                  <pre class="code-block"><code class="language-text">Authorization: Bearer &lt;top_level_token&gt;
+X-IA-API-Param-Entity: CentralUS-35</code></pre>
+                </div>
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">POST</span> /oauth2/token</p>
+                  <p class="code-label">Corps · refresh vers jeton entité</p>
+                  <pre class="code-block"><code class="language-json">{
+  "grant_type": "refresh_token",
+  "client_id": "xxx.app.sage.com",
+  "client_secret": "••••••",
+  "refresh_token": "eyJ...",
+  "location_id": "CentralUS-35"
+}</code></pre>
+                </div>
+              </div>
+              <p class="keep-box"><strong>Note :</strong> le refresh avec <strong>location_id</strong> renvoie un nouveau jeton utilisable pour les appels suivants, sans header entité à chaque requête.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+        </section>
+
+        <!-- Chapitre 3 · Lecture des données (navigation verticale ↕) -->
+        <section>
+          <section>
+            <div class="slide-inner slide-inner--chapter">
+              <span class="chapter-num">3</span>
+              <h2 class="chapter-title">Lecture des données</h2>
+              <p class="chapter-subtitle">Model · Query · Export</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Lecture des données · Model</h2>
+              <p class="slide-lead">Le service <strong>Model</strong> retourne les <strong>champs</strong> et les <strong>relations</strong> d'un objet, d'un service ou d'une autre ressource — à consulter avant de construire une <strong>Query</strong>.</p>
+              <p class="overview-subtitle">Requêtes types</p>
+              <p class="slide-lead">Tous les appels sont des <strong>GET</strong> vers <code class="inline-code">/services/core/model</code>, avec le header <code class="inline-code">Authorization: Bearer</code>.</p>
+              <ol class="step-list">
+                <li><code class="inline-code">/services/core/model</code> — définition courte de toutes les ressources de la version courante.</li>
+                <li><code class="inline-code">?name=company-config/department</code> — modèle complet d'une ressource précise <span class="text-muted">(<code class="inline-code">&lt;application&gt;/&lt;ressource&gt;</code>)</span>.</li>
+                <li><code class="inline-code">?name=projects/task&amp;version=v1</code> — modèle complet pour une version d'API donnée.</li>
+                <li><code class="inline-code">?version=v1&amp;schema=true&amp;type=workflow</code> — modèle complet de toutes les ressources d'un type <span class="text-muted">(<strong>object</strong>, <strong>service</strong> ou <strong>workflow</strong>)</span> pour une version.</li>
+              </ol>
+              <p class="keep-box"><strong>À retenir :</strong> <strong>name</strong> identifie une ressource <span class="text-muted">(objets custom : <code class="inline-code">platform-apps/nsp::&lt;nom&gt;</code>)</span>. <strong>schema=true</strong> renvoie le modèle complet ; par défaut, il est <strong>false</strong> pour une liste et <strong>true</strong> pour une ressource unique.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+
+          <section>
+            <div class="slide-inner slide-inner--content">
+              <h2 class="page-title">Lecture des données · Model · Exemple</h2>
+              <p class="slide-lead text-muted">Postman · modèle du département <code class="inline-code">company-config/department</code>.</p>
+              <div class="slide-two-col">
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">GET</span> /services/core/model</p>
+                  <p class="code-label">Paramètres URL</p>
+                  <pre class="code-block"><code class="language-text">?name=company-config/department</code></pre>
+                </div>
+                <div class="code-panel">
+                  <p class="code-http"><span class="method">200</span> OK</p>
+                  <p class="code-label">Réponse · extrait</p>
+                  <pre class="code-block"><code class="language-json">{
+  "ia::result": {
+    "fields": {
+      "id": { "type": "string", "nullable": false },
+      "key": { "type": "string", "readOnly": true },
+      "name": { "type": "string", "mutable": true },
+      "status": { "type": "string", "mutable": true }
+    }
+  }
+}</code></pre>
+                </div>
+              </div>
+              <p class="keep-box"><strong>Note :</strong> chaque champ indique type, nullabilité, mutabilité, etc. — utile pour choisir les <strong>fields</strong> et relations d'une Query.</p>
+              <p class="slide-footer">© The Sage Group plc, or its licensors. All rights reserved.</p>
+            </div>
+          </section>
+        </section>
+
+      </div>
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
